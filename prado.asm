@@ -9,30 +9,30 @@
 ; *********************************************************************************
 ; * Constantes
 ; *********************************************************************************
-TEC_LIN				EQU 0C000H	; endereço das linhas do teclado (periférico POUT-2)
-TEC_COL				EQU 0E000H	; endereço das colunas do teclado (periférico PIN)
-LINHA_TECLADO			EQU 8		; linha a testar (4ª linha, 1000b)
-MASCARA				EQU 0FH		; para isolar os 4 bits de menor peso, ao ler as colunas do teclado
-TECLA_ESQUERDA			EQU 1		; tecla na primeira coluna do teclado (tecla C)
-TECLA_DIREITA			EQU 2		; tecla na segunda coluna do teclado (tecla D)
+TEC_LIN					EQU 0C000H		; endereço das linhas do teclado (periférico POUT-2)
+TEC_COL					EQU 0E000H		; endereço das colunas do teclado (periférico PIN)
+LINHA_TECLADO			EQU 8			; linha a testar (4ª linha, 1000b)
+MASCARA					EQU 0FH			; para isolar os 4 bits de menor peso, ao ler as colunas do teclado
+TECLA_ESQUERDA			EQU 0H			; tecla na primeira coluna do teclado (tecla C)
+TECLA_DIREITA			EQU 2H			; tecla na segunda coluna do teclado (tecla D)
 
 DEFINE_LINHA    		EQU 600AH      ; endereço do comando para definir a linha
 DEFINE_COLUNA   		EQU 600CH      ; endereço do comando para definir a coluna
 DEFINE_PIXEL    		EQU 6012H      ; endereço do comando para escrever um pixel
 APAGA_AVISO     		EQU 6040H      ; endereço do comando para apagar o aviso de nenhum cenário selecionado
-APAGA_ECRÃ	 		EQU 6002H      ; endereço do comando para apagar todos os pixels já desenhados
-SELECIONA_CENARIO_FUNDO  EQU 6042H      ; endereço do comando para selecionar uma imagem de fundo
+APAGA_ECRÃ	 			EQU 6002H      ; endereço do comando para apagar todos os pixels já desenhados
+SELECIONA_CENARIO_FUNDO EQU 6042H      ; endereço do comando para selecionar uma imagem de fundo
 TOCA_SOM				EQU 605AH      ; endereço do comando para tocar um som
 
-LINHA        		EQU  16        ; linha do boneco (a meio do ecrã))
-COLUNA			EQU  30        ; coluna do boneco (a meio do ecrã)
+LINHA        	EQU  16        		   ; linha do boneco (a meio do ecrã))
+COLUNA			EQU  30        		   ; coluna do boneco (a meio do ecrã)
 
-MIN_COLUNA		EQU  0		; número da coluna mais à esquerda que o objeto pode ocupar
-MAX_COLUNA		EQU  63        ; número da coluna mais à direita que o objeto pode ocupar
-ATRASO			EQU	400H		; atraso para limitar a velocidade de movimento do boneco
+MIN_COLUNA		EQU  0				   ; número da coluna mais à esquerda que o objeto pode ocupar
+MAX_COLUNA		EQU  63        		   ; número da coluna mais à direita que o objeto pode ocupar
+ATRASO			EQU	0FFFH			   ; atraso para limitar a velocidade de movimento do boneco
 
-LARGURA		EQU	5			; largura do boneco
-COR_PIXEL		EQU	0FF00H		; cor do pixel: vermelho em ARGB (opaco e vermelho no máximo, verde e azul a 0)
+LARGURA			EQU	5				   ; largura do boneco
+COR_PIXEL		EQU	0FF00H			   ; cor do pixel: vermelho em ARGB (opaco e vermelho no máximo, verde e azul a 0)
 
 ; *********************************************************************************
 ; * Dados 
@@ -56,35 +56,35 @@ DEF_BONECO:					; tabela que define o boneco (cor, largura, pixels)
 PLACE   0                     ; o código tem de começar em 0000H
 inicio:
 	MOV  SP, SP_inicial		; inicializa SP para a palavra a seguir
-						; à última da pilha
+							; à última da pilha
                             
-     MOV  [APAGA_AVISO], R1	; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
-     MOV  [APAGA_ECRÃ], R1	; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
-	MOV	R1, 0			; cenário de fundo número 0
-     MOV  [SELECIONA_CENARIO_FUNDO], R1	; seleciona o cenário de fundo
-	MOV	R7, 1			; valor a somar à coluna do boneco, para o movimentar
+    MOV  [APAGA_AVISO], R1				; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
+    MOV  [APAGA_ECRÃ], R1				; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
+	MOV	 R1, 0							; cenário de fundo número 0
+    MOV  [SELECIONA_CENARIO_FUNDO], R1	; seleciona o cenário de fundo
+	MOV	 R7, 1							; valor a somar à coluna do boneco, para o movimentar
+	MOV  R6, LINHA_TECLADO				; inicializa R6 com o valor da primeira linha a ser lida
      
 posição_boneco:
-     MOV  R1, LINHA			; linha do boneco
-     MOV  R2, COLUNA		; coluna do boneco
-	MOV	R4, DEF_BONECO		; endereço da tabela que define o boneco
+    MOV  R1, LINHA						; linha do boneco
+    MOV  R2, COLUNA						; coluna do boneco
+	MOV	 R4, DEF_BONECO					; endereço da tabela que define o boneco
 
 mostra_boneco:
-	CALL	desenha_boneco		; desenha o boneco a partir da tabela
+	CALL desenha_boneco					; desenha o boneco a partir da tabela
 
-espera_nao_tecla:			; neste ciclo espera-se até NÃO haver nenhuma tecla premida
-	MOV  R6, LINHA_TECLADO	; linha a testar no teclado
-	CALL	teclado			; leitura às teclas
-	CMP	R0, 0
-	JNZ	espera_nao_tecla	; espera, enquanto houver tecla uma tecla carregada
+espera_nao_tecla:						; neste ciclo espera-se até NÃO haver nenhuma tecla premida
+	CALL teclado						; leitura às teclas dado a linha (R6) anteriormente gravada
+	CMP	 R0, -1							; se R0 = -1, nenhuma tecla está a ser premida
+	JNZ	 espera_nao_tecla				; espera, enquanto houver tecla uma tecla carregada
 
 espera_tecla:				; neste ciclo espera-se até uma tecla ser premida
-	MOV  R6, LINHA_TECLADO	; linha a testar no teclado
-	CALL	teclado			; leitura às teclas
-	CMP	R0, 0
-	JZ	espera_tecla		; espera, enquanto não houver tecla
+	ROL R6, 1				; linha a testar no teclado
+	CALL teclado			; leitura às teclas
+	CMP	 R0, -1
+	JZ	 espera_tecla		; espera, enquanto não houver tecla
 	
-	MOV	R9, 0			; som com número 0
+	MOV	R9, 0			    ; som com número 0
 	MOV [TOCA_SOM], R9		; comando para tocar o som
 	
 	CMP	R0, TECLA_ESQUERDA
@@ -97,10 +97,12 @@ testa_direita:
 	MOV	R7, +1			; vai deslocar para a direita
 	
 ve_limites:
+	PUSH R6
 	MOV	R6, [R4]			; obtém a largura do boneco
 	CALL	testa_limites		; vê se chegou aos limites do ecrã e se sim força R7 a 0
 	CMP	R7, 0
 	JZ	espera_tecla		; se não é para movimentar o objeto, vai ler o teclado de novo
+	POP R6
 
 move_boneco:
 	CALL	apaga_boneco		; apaga o boneco na sua posição corrente
@@ -230,28 +232,57 @@ sai_testa_limites:
 	POP	R5
 	RET
 
-; **********************************************************************
-; TECLADO - Faz uma leitura às teclas de uma linha do teclado e retorna o valor lido
-; Argumentos:	R6 - linha a testar (em formato 1, 2, 4 ou 8)
-;
-; Retorna: 	R0 - valor lido das colunas do teclado (0, 1, 2, 4, ou 8)	
-; **********************************************************************
+; +----------------------------------------------------------------------------------------------+
+; | TECLADO - Faz uma leitura às teclas de uma linha do teclado e retorna o valor da tecla lida  |
+; | Argumentos:	R6 - linha a testar (em formato 1, 2, 4 ou 8)                                    |
+; |                                                                                              |
+; | Retorna: 	R0 - valor (em hexadecimal) da tecla premida (em formato 0, 1, 2, ..., F)        |
+; |				NOTA: Caso nenhuma tecla esteja premida, R0 fica a -1.                           |	
+; +----------------------------------------------------------------------------------------------+
 teclado:
 	PUSH	R2
 	PUSH	R3
 	PUSH	R5
+	PUSH 	R6
 	MOV  R2, TEC_LIN   ; endereço do periférico das linhas
 	MOV  R3, TEC_COL   ; endereço do periférico das colunas
 	MOV  R5, MASCARA   ; para isolar os 4 bits de menor peso, ao ler as colunas do teclado
 	MOVB [R2], R6      ; escrever no periférico de saída (linhas)
 	MOVB R0, [R3]      ; ler do periférico de entrada (colunas)
 	AND  R0, R5        ; elimina bits para além dos bits 0-3
+	CMP R0, 0
+	JZ teclado_nenhuma_tecla_premida
+	CALL formata_linha
+	CALL formata_coluna
+	MOV TEMP, 4
+	MUL R6, TEMP
+	ADD R0, R6
+	JMP teclado_saida
+teclado_nenhuma_tecla_premida:
+	MOV R0, -1
+teclado_saida:
+	POP R6
 	POP	R5
 	POP	R3
 	POP	R2
 	RET
 
+formata_linha:
+	MOV TEMP, -1
+formata_linha_ciclo:
+	ADD TEMP, 1
+	SHR R6, 1
+	CMP R6, 0
+	JNZ formata_linha_ciclo
+	MOV R6, TEMP
+	RET
 
-
-
-;i love manquinho
+formata_coluna:
+	MOV TEMP, -1
+formata_coluna_ciclo:
+	ADD TEMP, 1
+	SHR R0, 1
+	CMP R0, 0
+	JNZ formata_coluna_ciclo
+	MOV R0, TEMP
+	RET
