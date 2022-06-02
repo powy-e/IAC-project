@@ -34,6 +34,11 @@ ATRASO			EQU	0FFFH			   ; atraso para limitar a velocidade de movimento do bonec
 LARGURA			EQU	5				   ; largura do boneco
 COR_PIXEL		EQU	0FF00H			   ; cor do pixel: vermelho em ARGB (opaco e vermelho no máximo, verde e azul a 0)
 
+ENDEREÇO_DISPLAY EQU 0A000H			   ; endereço do display (POUT-2)
+ENERGIA_INICIAL	EQU	100				   ; energia inicial do boneco
+VALOR_ENERGIA_AUMENTO EQU 5			   ; valor de aumento da energia
+VALOR_ENERGIA_DIMINUI EQU 5			   ; valor de diminuição da energia
+
 ; *********************************************************************************
 ; * Dados 
 ; *********************************************************************************
@@ -44,6 +49,9 @@ pilha:
 SP_inicial:				; este é o endereço (1200H) com que o SP deve ser 
 						; inicializado. O 1.º end. de retorno será 
 						; armazenado em 11FEH (1200H-2)
+
+vida:
+	WORD ENERGIA_INICIAL 	; guarda a energia inicial do boneco
 							
 DEF_BONECO:					; tabela que define o boneco (cor, largura, pixels)
 	WORD		LARGURA
@@ -286,3 +294,31 @@ formata_coluna_ciclo:
 	JNZ formata_coluna_ciclo
 	MOV R0, TEMP
 	RET
+
+
+
+inicia_energia_display:
+	PUSH R0							;guarda o valor de R0
+	MOV R0, [vida]					;coloca em R0 o valor inicial da energia
+	MOV [ENDEREÇO_DISPLAY], R0		;coloca o valor inicial no display
+	POP R0
+	RET
+
+aumenta_energia_display:
+	PUSH R0							;guarda o valor de R0
+	MOV R0, [vida]					;coloca em R0 o valor inicial da energia
+	ADD R0, 5
+	MOV [vida], R0					;Guarda energia na memória
+	MOV [ENDEREÇO_DISPLAY], R0		;coloca o valor inicial no display
+	POP R0							;restaura o valor de R0
+	RET
+
+aumenta_energia_display:
+	PUSH R0							;guarda o valor de R0
+	MOV R0, [vida]					;coloca em R0 o valor inicial da energia
+	SUB R0, 5
+	MOV [vida], R0					;Guarda energia na memória
+	MOV [ENDEREÇO_DISPLAY], R0		;coloca o valor inicial no display
+	POP R0							;restaura o valor de R0
+	RET
+
