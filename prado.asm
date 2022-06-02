@@ -11,7 +11,7 @@
 ; *********************************************************************************
 TEC_LIN					EQU 0C000H		; endereço das linhas do teclado (periférico POUT-2)
 TEC_COL					EQU 0E000H		; endereço das colunas do teclado (periférico PIN)
-LINHA_TECLADO			EQU 8			; linha a testar (4ª linha, 1000b)
+LINHA_TECLADO			EQU 1			; linha a testar (4ª linha, 1000b)
 MASCARA					EQU 0FH			; para isolar os 4 bits de menor peso, ao ler as colunas do teclado
 TECLA_ESQUERDA			EQU 0			; tecla 0
 TECLA_DIREITA			EQU 2			; tecla 2
@@ -47,7 +47,7 @@ VALOR_ENERGIA_DIMINUI EQU 5			   ; valor de diminuição da energia
 ; *********************************************************************************
 	PLACE       1000H
 pilha:
-	STACK 100H			; espaço reservado para a pilha 
+	STACK 200H			; espaço reservado para a pilha 
 						; (200H bytes, pois são 100H words)
 SP_inicial:				; este é o endereço (1200H) com que o SP deve ser 
 						; inicializado. O 1.º end. de retorno será 
@@ -73,7 +73,7 @@ inicio:
     MOV  [APAGA_ECRÃ], R1				; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
 	MOV	 R1, 0							; cenário de fundo número 0
     MOV  [SELECIONA_CENARIO_FUNDO], R1	; seleciona o cenário de fundo
-	MOV	 R7, 1							; valor a somar à coluna do boneco, para o movimentar
+	MOV	 R7, 0							; valor a somar à coluna do boneco, para o movimentar
 	MOV  R6, LINHA_TECLADO				; inicializa R6 com o valor da primeira linha a ser lida
 	CALL inicia_energia_display
      
@@ -90,9 +90,13 @@ espera_nao_tecla:						; neste ciclo espera-se até NÃO haver nenhuma tecla pre
 mostra_boneco:
 	CALL desenha_boneco					; desenha o boneco a partir da tabela
 	JMP espera_tecla
-
 espera_tecla:				; neste ciclo espera-se até uma tecla ser premida
-	ROL R6, 1				; linha a testar no teclado
+	ADD R6, R6				; linha a testar no teclado
+	MOV TEMP, 16
+	CMP R6, TEMP
+	JNZ espera_tecla_body
+	MOV R6, 1
+espera_tecla_body:
 	CALL teclado			; leitura às teclas
 	CMP	 R0, -1
 	JZ	 espera_tecla		; espera, enquanto não houver tecla
@@ -131,9 +135,9 @@ ve_limites:
 	PUSH R6
 	MOV	R6, 5;[R4]			; obtém a largura do boneco
 	CALL	testa_limites		; vê se chegou aos limites do ecrã e se sim força R7 a 0
+	POP R6
 	CMP	R7, 0
 	JZ	espera_tecla		; se não é para movimentar o objeto, vai ler o teclado de novo
-	POP R6
 
 move_boneco:
 	PUSH R11
@@ -144,7 +148,6 @@ move_boneco:
 	
 coluna_seguinte:
 	ADD	R2, R7			; para desenhar objeto na coluna seguinte (direita ou esquerda)
-
 	JMP	mostra_boneco		; vai desenhar o boneco de novo
 
 
