@@ -82,22 +82,21 @@ posição_boneco:
     MOV  R2, COLUNA						; coluna do boneco
 	MOV	 R4, DEF_BONECO					; endereço da tabela que define o boneco
 
+mostra_boneco:
+	CALL desenha_boneco					; desenha o boneco a partir da tabela
+	JMP espera_tecla
+
 espera_nao_tecla:						; neste ciclo espera-se até NÃO haver nenhuma tecla premida
 	CALL teclado						; leitura às teclas dado a linha (R6) anteriormente gravada
 	CMP	 R0, -1							; se R0 = -1, nenhuma tecla está a ser premida
 	JNZ	 espera_nao_tecla				; espera, enquanto houver tecla uma tecla carregada
 
-mostra_boneco:
-	CALL desenha_boneco					; desenha o boneco a partir da tabela
-
 espera_tecla:				; neste ciclo espera-se até uma tecla ser premida
-	ROL R6, 1				; linha a testar no teclado
+	SHL R6, 1				; linha a testar no teclado
 	CALL teclado			; leitura às teclas
 	CMP	 R0, -1
 	JZ	 espera_tecla		; espera, enquanto não houver tecla
-	
-	MOV	R9, 0			    ; som com número 0
-	MOV [TOCA_SOM], R9		; comando para tocar o som
+
 mover_esquerda:
 	CMP	R0, TECLA_ESQUERDA
 	JNZ mover_direita
@@ -111,6 +110,8 @@ mover_direita:
 ;baixar_meteoro:
 ;	CMP R0, TECLA_METEORO_BAIXO
 ;	JNZ aumenta_display
+;	MOV	R9, 0			    ; som com número 0
+;	MOV [TOCA_SOM], R9		; comando para tocar o som
 ;	CALL posicao_meteoro_mau
 ;	JMP espera_nao_tecla
 aumenta_display:
@@ -128,14 +129,18 @@ diminui_display:
 	
 ve_limites:
 	PUSH R6
-	MOV	R6, [R4]			; obtém a largura do boneco
+	MOV	R6, 5;[R4]			; obtém a largura do boneco
 	CALL	testa_limites		; vê se chegou aos limites do ecrã e se sim força R7 a 0
 	CMP	R7, 0
 	JZ	espera_tecla		; se não é para movimentar o objeto, vai ler o teclado de novo
 	POP R6
 
 move_boneco:
+	PUSH R11
 	CALL	apaga_boneco		; apaga o boneco na sua posição corrente
+	MOV R11, ATRASO
+	CALL atraso
+	POP R11
 	
 coluna_seguinte:
 	ADD	R2, R7			; para desenhar objeto na coluna seguinte (direita ou esquerda)
@@ -244,16 +249,14 @@ testa_limite_esquerdo:		; vê se o boneco chegou ao limite esquerdo
 	MOV	R5, MIN_COLUNA
 	CMP	R2, R5
 	JGT	testa_limite_direito
-	MOV R7, +1 			;im dumb
 	CMP	R7, 0			; passa a deslocar-se para a direita
-	JGE	sai_testa_limites
+	JGT	sai_testa_limites
 	JMP	impede_movimento	; entre limites. Mantém o valor do R7
 testa_limite_direito:		; vê se o boneco chegou ao limite direito
 	ADD	R6, R2			; posição a seguir ao extremo direito do boneco
 	MOV	R5, MAX_COLUNA
 	CMP	R6, R5
-	JLE	sai_testa_limites	; entre limites. Mantém o valor do R7
-	MOV R7, -1 			; im dumb
+	JLT	sai_testa_limites	; entre limites. Mantém o valor do R7
 	CMP	R7, 0			; passa a deslocar-se para a direita
 	JGT	impede_movimento
 	JMP	sai_testa_limites
@@ -337,9 +340,9 @@ aumenta_energia_display:
 	ADD R0, 5
 	MOV [vida], R0					;Guarda energia na memória
 	MOV [ENDEREÇO_DISPLAY], R0		;coloca o valor inicial no display
+exit_aumenta_energia_display:
 	POP R1 							;restaura o valor de R1
 	POP R0							;restaura o valor de R0
-exit_aumenta_energia_display:
 	RET
 
 diminui_energia_display:
@@ -350,6 +353,6 @@ diminui_energia_display:
 	SUB R0, 5
 	MOV [vida], R0					;Guarda energia na memória
 	MOV [ENDEREÇO_DISPLAY], R0		;coloca o valor inicial no display
-	POP R0							;restaura o valor de R0
 exit_diminui_energia_display:
+	POP R0							;restaura o valor de R0
 	RET
