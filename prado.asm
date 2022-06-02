@@ -313,7 +313,7 @@ aumenta_energia_display:
 	POP R0							;restaura o valor de R0
 	RET
 
-aumenta_energia_display:
+diminui_energia_display:
 	PUSH R0							;guarda o valor de R0
 	MOV R0, [vida]					;coloca em R0 o valor inicial da energia
 	SUB R0, 5
