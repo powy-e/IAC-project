@@ -244,6 +244,7 @@ testa_limite_esquerdo:		; vê se o boneco chegou ao limite esquerdo
 	MOV	R5, MIN_COLUNA
 	CMP	R2, R5
 	JGT	testa_limite_direito
+	MOV R7, +1 			;im dumb
 	CMP	R7, 0			; passa a deslocar-se para a direita
 	JGE	sai_testa_limites
 	JMP	impede_movimento	; entre limites. Mantém o valor do R7
@@ -252,6 +253,7 @@ testa_limite_direito:		; vê se o boneco chegou ao limite direito
 	MOV	R5, MAX_COLUNA
 	CMP	R6, R5
 	JLE	sai_testa_limites	; entre limites. Mantém o valor do R7
+	MOV R7, -1 			; im dumb
 	CMP	R7, 0			; passa a deslocar-se para a direita
 	JGT	impede_movimento
 	JMP	sai_testa_limites
