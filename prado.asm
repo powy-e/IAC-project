@@ -329,17 +329,23 @@ inicia_energia_display:
 aumenta_energia_display:
 	PUSH R0							;guarda o valor de R0
 	MOV R0, [vida]					;coloca em R0 o valor inicial da energia
+	CMP R0, VALOR_ENERGIA_AUMENTO	;se a energia for maior que 5, não altera
+	JLT exit_aumenta_energia_display  
 	ADD R0, 5
 	MOV [vida], R0					;Guarda energia na memória
 	MOV [ENDEREÇO_DISPLAY], R0		;coloca o valor inicial no display
 	POP R0							;restaura o valor de R0
+exit_aumenta_energia_display:
 	RET
 
 diminui_energia_display:
 	PUSH R0							;guarda o valor de R0
 	MOV R0, [vida]					;coloca em R0 o valor inicial da energia
+	CMP R0, VALOR_ENERGIA_DIMINUI	;se a energia for maior que 5, não altera
+	JLT exit_diminui_energia_display  
 	SUB R0, 5
 	MOV [vida], R0					;Guarda energia na memória
 	MOV [ENDEREÇO_DISPLAY], R0		;coloca o valor inicial no display
 	POP R0							;restaura o valor de R0
+exit_diminui_energia_display:
 	RET
