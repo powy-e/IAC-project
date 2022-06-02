@@ -82,17 +82,17 @@ posição_boneco:
     MOV  R2, COLUNA						; coluna do boneco
 	MOV	 R4, DEF_BONECO					; endereço da tabela que define o boneco
 
-mostra_boneco:
-	CALL desenha_boneco					; desenha o boneco a partir da tabela
-	JMP espera_tecla
-
 espera_nao_tecla:						; neste ciclo espera-se até NÃO haver nenhuma tecla premida
 	CALL teclado						; leitura às teclas dado a linha (R6) anteriormente gravada
 	CMP	 R0, -1							; se R0 = -1, nenhuma tecla está a ser premida
 	JNZ	 espera_nao_tecla				; espera, enquanto houver tecla uma tecla carregada
 
+mostra_boneco:
+	CALL desenha_boneco					; desenha o boneco a partir da tabela
+	JMP espera_tecla
+
 espera_tecla:				; neste ciclo espera-se até uma tecla ser premida
-	SHL R6, 1				; linha a testar no teclado
+	ROL R6, 1				; linha a testar no teclado
 	CALL teclado			; leitura às teclas
 	CMP	 R0, -1
 	JZ	 espera_tecla		; espera, enquanto não houver tecla
@@ -250,13 +250,13 @@ testa_limite_esquerdo:		; vê se o boneco chegou ao limite esquerdo
 	CMP	R2, R5
 	JGT	testa_limite_direito
 	CMP	R7, 0			; passa a deslocar-se para a direita
-	JGT	sai_testa_limites
+	JGE	sai_testa_limites
 	JMP	impede_movimento	; entre limites. Mantém o valor do R7
 testa_limite_direito:		; vê se o boneco chegou ao limite direito
 	ADD	R6, R2			; posição a seguir ao extremo direito do boneco
 	MOV	R5, MAX_COLUNA
 	CMP	R6, R5
-	JLT	sai_testa_limites	; entre limites. Mantém o valor do R7
+	JLE	sai_testa_limites	; entre limites. Mantém o valor do R7
 	CMP	R7, 0			; passa a deslocar-se para a direita
 	JGT	impede_movimento
 	JMP	sai_testa_limites
