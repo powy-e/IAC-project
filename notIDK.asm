@@ -75,20 +75,30 @@ POSIÇAO_METEORO:
 PLACE   0                
 
 inicio:
-    MOV  [APAGA_AVISO], R1	; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
-    MOV  [APAGA_ECRÃ], R1	; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
-	MOV	R1, 0			; cenário de fundo número 0
+    MOV  [APAGA_AVISO], R1	    ; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
+    MOV  [APAGA_ECRÃ], R1	    ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
+	MOV	R1, 0			        ; cenário de fundo número 0
     MOV  [SELECIONA_CENARIO_FUNDO], R1	; seleciona o cenário de fundo
-	;MOV	R7, 1			; valor a somar à coluna do boneco, para o movimentar
 	MOV  SP, SP_inicial	
-    CALL inicio_desenha_nave
-    CALL testa_limite_esquerdo
-    JMP fim
+    CALL inicio_desenha_nave    ; desenha
+    MOV  R6, LINHA_TECLADO		; inicializa R6 com o valor da primeira linha a ser lida
+	CALL inicia_energia_display ; Inicializa display a 100
+
      
+
 fim:
     JMP fim
 
-testa_limite_esquerdo:		    ; Vê se o boneco chegou ao limite esquerdo
+
+mover_esquerda:		            ; Vê se o boneco chegou ao limite esquerdo
+    PUSH R9
+    PUSH R8
+    PUSH R7
+    PUSH R6
+    PUSH R5
+    PUSH R4
+    PUSH R3
+    PUSH R2
 	MOV	R5, MIN_COLUNA          ; Guarda a Coluna Limite em R5
 	MOV R2, [POSIÇAO_NAVE]      ; Vai buscar a Coluna onde a Nave se encontra
 	CMP	R2, R5                  ; Verifica se a nave se encontra nessa coluna
@@ -97,20 +107,24 @@ testa_limite_esquerdo:		    ; Vê se o boneco chegou ao limite esquerdo
     CALL inicio_apaga_nave      ; Apaga a Nave
     CALL desenha_col_seguinte   ;inicia desenho
 fim_movimento_esquerda:
+    POP R2
+    POP R3
+    POP R4
+    POP R5
+    POP R6
+    POP R7
+    POP R8
+    POP R9
     RET
-
-
 inicio_apaga_nave:	
     MOV R9, LINHA_NAVE
     MOV R8, [DEF_NAVE]
 	JMP apaga_linha_nave
-
 apaga_linha_nave:       		; desenha o boneco a partir da tabela
 	MOV	R6, [POSIÇAO_NAVE]		; cópia da coluna do boneco
 	MOV	R4, DEF_NAVE		    ; endereço da tabela que define o boneco
 	MOV	R5, [R4+2]			    ; obtém a largura do boneco
 	JMP apaga_pixels_nave
-
 apaga_pixels_nave:       		; desenha os pixels do boneco a partir da tabela
 	MOV	R3, 0			        ; para apagar, a cor do pixel é sempre 0
 	MOV  [DEFINE_LINHA], R9	    ; seleciona a linha
@@ -133,6 +147,9 @@ desenha_col_seguinte:
 	JMP	inicio_desenha_nave		; vai desenhar o boneco de novo
 
 inicio_desenha_nave:
+    ;PUSH R9
+    ;PUSH R8
+    ;PUSH R4
     MOV R9, LINHA_NAVE          ;linha da nave
     MOV R8, [DEF_NAVE]
     MOV	R4, DEF_NAVE		    ; endereço da tabela que define a nave
@@ -159,8 +176,13 @@ desenha_pixels_nave:       		; desenha os pixels da figura a partir da tabela co
     JNZ desenha_linha_nave
 	
 	CALL inicio_ciclo_atraso
+    ;POP R4
+    ;POP R8
+    ;POP R9
 	RET
 
+
+;;BURUh
 
 
 
@@ -243,7 +265,18 @@ linha_seguinte:
     JLE inicio_desenha_meteoro_mau
 	;RET????=?
 
-
+mover_direita:		; vê se o boneco chegou ao limite direito
+	MOV	R6, [DEF_NAVE+2]	; obtém a largura do boneco (primeira WORD da tabela)
+	MOV R2, [POSIÇAO_NAVE]   ; Vai buscar a Linha onde a Nave se encontra
+	ADD R6, R2                 ; obtém a posiçao da ultima coluna
+	MOV	R5, MAX_COLUNA
+	CMP	R6, R5
+	JGT	fim_movimento_direita   ; Caso se verifique acaba o movimento 
+    MOV R7, 1                  ; Indica o sentido do movimento
+    CALL inicio_apaga_nave      ; Apaga a Nave
+	CALL desenha_col_seguinte   ;inicia desenho
+fim_movimento_direita:
+    RET
     
 
 
@@ -277,16 +310,6 @@ ciclo_atraso:	;;usado para meteoros e naves
 
 
 
-testa_limite_direito:		; vê se o boneco chegou ao limite direito
-	MOV	R6, [DEF_NAVE+2]	; obtém a largura do boneco (primeira WORD da tabela)
-	;ADD	R6, R2			; posição a seguir ao extremo direito do boneco
-	MOV R2, [POSIÇAO_NAVE]
-	ADD R6, R2
-	
-	MOV	R5, MAX_COLUNA
-	CMP	R6, R5
-	JGT	inverte_para_esquerda
-	JMP	desenha_col_seguinte	; entre limites. Mnatém o valor do R7
 
 inverte_para_direita:
 	MOV	R7, 1			; passa a deslocar-se para a direita
