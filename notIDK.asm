@@ -74,15 +74,92 @@ POSIÇAO_METEORO:
 ; *********************************************************************************
 PLACE   0                
 
-inicio:     ;acho que convem estar no inicio do codigo para o R1 usado aqui nao mudar!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+inicio:
     MOV  [APAGA_AVISO], R1	; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
     MOV  [APAGA_ECRÃ], R1	; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
 	MOV	R1, 0			; cenário de fundo número 0
     MOV  [SELECIONA_CENARIO_FUNDO], R1	; seleciona o cenário de fundo
 	;MOV	R7, 1			; valor a somar à coluna do boneco, para o movimentar
 	MOV  SP, SP_inicial	
+    CALL inicio_desenha_nave
+    CALL testa_limite_esquerdo
+    JMP fim
      
+fim:
+    JMP fim
 
+testa_limite_esquerdo:		    ; Vê se o boneco chegou ao limite esquerdo
+	MOV	R5, MIN_COLUNA          ; Guarda a Coluna Limite em R5
+	MOV R2, [POSIÇAO_NAVE]      ; Vai buscar a Coluna onde a Nave se encontra
+	CMP	R2, R5                  ; Verifica se a nave se encontra nessa coluna
+	JLE	fim_movimento_esquerda  ; Caso se verifique acaba o movimento    
+	MOV R7, -1                  ; Indica o sentido do movimento
+    CALL inicio_apaga_nave      ; Apaga a Nave
+    CALL desenha_col_seguinte   ;inicia desenho
+fim_movimento_esquerda:
+    RET
+
+
+inicio_apaga_nave:	
+    MOV R9, LINHA_NAVE
+    MOV R8, [DEF_NAVE]
+	JMP apaga_linha_nave
+
+apaga_linha_nave:       		; desenha o boneco a partir da tabela
+	MOV	R6, [POSIÇAO_NAVE]		; cópia da coluna do boneco
+	MOV	R4, DEF_NAVE		    ; endereço da tabela que define o boneco
+	MOV	R5, [R4+2]			    ; obtém a largura do boneco
+	JMP apaga_pixels_nave
+
+apaga_pixels_nave:       		; desenha os pixels do boneco a partir da tabela
+	MOV	R3, 0			        ; para apagar, a cor do pixel é sempre 0
+	MOV  [DEFINE_LINHA], R9	    ; seleciona a linha
+	MOV  [DEFINE_COLUNA], R6	; seleciona a coluna
+	MOV  [DEFINE_PIXEL], R3	    ; altera a cor do pixel na linha e coluna selecionadas
+    ADD  R6, 1                  ; próxima coluna
+    SUB  R5, 1			        ; menos uma coluna para tratar
+    JNZ  apaga_pixels_nave		; continua até percorrer toda a largura do objeto
+	ADD R9, 1                   ; Passa à linha seguinte
+    SUB R8, 1                   ; Reduz o contador das linhas a desenhar
+	JNZ apaga_linha_nave        ; Continua o loop  
+    RET
+
+;hahaha
+
+desenha_col_seguinte:
+	MOV R2, [POSIÇAO_NAVE]
+	ADD	R2, R7			        ; para desenhar objeto na coluna seguinte (direita ou esquerda)
+	MOV [POSIÇAO_NAVE], R2
+	JMP	inicio_desenha_nave		; vai desenhar o boneco de novo
+
+inicio_desenha_nave:
+    MOV R9, LINHA_NAVE          ;linha da nave
+    MOV R8, [DEF_NAVE]
+    MOV	R4, DEF_NAVE		    ; endereço da tabela que define a nave
+    ADD R4, 4			        ; endereço da cor do 1º pixel (4 porque a largura e altura são words)
+    JMP desenha_linha_nave
+
+desenha_linha_nave:       		; desenha a nave a partir da tabela
+	MOV	R6, [POSIÇAO_NAVE]		; cópia da coluna da nave
+	MOV	R5, [DEF_NAVE+2]		; obtém a largura do boneco
+    JMP desenha_pixels_nave
+    
+desenha_pixels_nave:       		; desenha os pixels da figura a partir da tabela correspondente
+	MOV	R3, [R4]			    ; obtém a cor do próximo pixel 
+	MOV  [DEFINE_LINHA], R9	    ; seleciona a linha
+	MOV  [DEFINE_COLUNA], R6	; seleciona a coluna
+	MOV  [DEFINE_PIXEL], R3	    ; altera a cor do pixel na linha e coluna selecionadas
+	ADD	R4, 2			        ; endereço da cor do próximo pixel (2 porque cada cor de pixel é uma word)
+    ADD  R6, 1                  ; próxima coluna
+    SUB  R5, 1			        ; menos uma coluna para tratar
+    JNZ  desenha_pixels_nave    ; continua até percorrer toda a largura do objeto
+	ADD R9, 1                   ; aumenta a linha
+         
+	SUB R8, 1
+    JNZ desenha_linha_nave
+	
+	CALL inicio_ciclo_atraso
+	RET
 
 
 
@@ -90,13 +167,17 @@ inicio:     ;acho que convem estar no inicio do codigo para o R1 usado aqui nao 
 posição_meteoro_mau:
     MOV R7, 1
 
-
 inicio_desenha_meteoro_mau:
 	MOV R9, [POSIÇAO_METEORO]
     MOV R8, [DEF_METEORO_MAU]   ;altura do meteoro mau
     MOV	R4, DEF_METEORO_MAU		; endereço da tabela que define o boneco
     ADD R4, 4           ; endereço da cor do 1º pixel 
     JMP desenha_meteoro_mau
+
+
+
+
+
 
 
 desenha_meteoro_mau:       		; desenha o meteoro mau a partir da tabela			; cópia da coluna do meteoro
@@ -175,36 +256,7 @@ linha_seguinte:
 
 
 
-inicio_desenha_nave:
-    MOV R9, LINHA_NAVE      ;linha da nave
-    MOV R8, [DEF_NAVE]
-    MOV	R4, DEF_NAVE		; endereço da tabela que define a nave
-    ADD R4, 4			; endereço da cor do 1º pixel (4 porque a largura e altura são words)
-    JMP desenha_nave
 
-
-desenha_nave:       		; desenha a nave a partir da tabela
-	MOV	R6, [POSIÇAO_NAVE]			; cópia da coluna da nave
-	MOV	R5, [DEF_NAVE+2]			; obtém a largura do boneco
-    JMP desenha_pixels_nave
-    
-    
-desenha_pixels_nave:       		; desenha os pixels da figura a partir da tabela correspondente
-	MOV	R3, [R4]			; obtém a cor do próximo pixel 
-	MOV  [DEFINE_LINHA], R9	; seleciona a linha
-	MOV  [DEFINE_COLUNA], R6	; seleciona a coluna
-	MOV  [DEFINE_PIXEL], R3	; altera a cor do pixel na linha e coluna selecionadas
-	ADD	R4, 2			; endereço da cor do próximo pixel (2 porque cada cor de pixel é uma word)
-    ADD  R6, 1               ; próxima coluna
-    SUB  R5, 1			; menos uma coluna para tratar
-    JNZ  desenha_pixels_nave      ; continua até percorrer toda a largura do objeto
-	ADD R9, 1               ; aumenta a linha
-         
-	SUB R8, 1
-    JNZ desenha_nave
-	
-	CALL inicio_ciclo_atraso
-	JMP inicio_apaga_nave
 
 inicio_ciclo_atraso:
 	PUSH R11
@@ -216,41 +268,12 @@ ciclo_atraso:	;;usado para meteoros e naves
 	RET 
 
 
-inicio_apaga_nave:	
 
-    MOV R9, LINHA_NAVE
-    MOV R8, [DEF_NAVE]
-	JMP apaga_nave
-
-apaga_nave:       		; desenha o boneco a partir da tabela
-	MOV	R6, [POSIÇAO_NAVE]			; cópia da coluna do boneco
-	MOV	R4, DEF_NAVE		; endereço da tabela que define o boneco
-	MOV	R5, [R4+2]			; obtém a largura do boneco
-	JMP apaga_pixels_nave
 
 
 
 ;;;apaga pixels
 
-apaga_pixels_nave:       		; desenha os pixels do boneco a partir da tabela
-	MOV	R3, 0			; para apagar, a cor do pixel é sempre 0
-	MOV  [DEFINE_LINHA], R9	; seleciona a linha
-	MOV  [DEFINE_COLUNA], R6	; seleciona a coluna
-	MOV  [DEFINE_PIXEL], R3	; altera a cor do pixel na linha e coluna selecionadas
-    ADD  R6, 1               ; próxima coluna
-    SUB  R5, 1			; menos uma coluna para tratar
-    JNZ  apaga_pixels_nave		; continua até percorrer toda a largura do objeto
-	
-	ADD R9, 1
-    SUB R8, 1
-	JNZ apaga_nave
-
-testa_limite_esquerdo:		; vê se o boneco chegou ao limite esquerdo
-	MOV	R5, MIN_COLUNA
-	MOV R2, [POSIÇAO_NAVE]
-	CMP	R2, R5
-	JLE	inverte_para_direita	;RET
-	MOV R7, -1
 
 
 
@@ -263,20 +286,15 @@ testa_limite_direito:		; vê se o boneco chegou ao limite direito
 	MOV	R5, MAX_COLUNA
 	CMP	R6, R5
 	JGT	inverte_para_esquerda
-	JMP	coluna_seguinte	; entre limites. Mnatém o valor do R7
+	JMP	desenha_col_seguinte	; entre limites. Mnatém o valor do R7
 
 inverte_para_direita:
 	MOV	R7, 1			; passa a deslocar-se para a direita
-	JMP	coluna_seguinte
+	JMP	desenha_col_seguinte
 
 inverte_para_esquerda:
 	MOV	R7, -1			; passa a deslocar-se para a esquerda
 	
-coluna_seguinte:
-	MOV R2, [POSIÇAO_NAVE]
-	ADD	R2, R7			; para desenhar objeto na coluna seguinte (direita ou esquerda)
-	MOV [POSIÇAO_NAVE], R2
-	JMP	inicio_desenha_nave		; vai desenhar o boneco de novo
 
 ;;
 anda_para_cima_ou_esquerda:
