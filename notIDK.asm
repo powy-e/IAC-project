@@ -21,9 +21,8 @@ LINHA_APOS_NAVE         EQU 32         ;linha após linha final da nave
 ALTURA_NAVE             EQU 4
 COR_PIXEL_NAVE		    EQU	0FFAAH		; cor do pixel: vermelho em ARGB (opaco e vermelho no máximo, verde e azul a 0)
 
-LINHA_INICIAL_METEORO   EQU 14
+LINHA_INICIAL_METEORO   EQU 0
 COLUNA_METEORO          EQU 44
-LINHA_APOS_METEORO      EQU 19
 ALTURA_METEORO_MAU      EQU 5
 COR_PIXEL_METEORO       EQU 0FF05H   ;rosa choque
 
@@ -80,10 +79,40 @@ inicio:
 	MOV	R1, 0			        ; cenário de fundo número 0
     MOV  [SELECIONA_CENARIO_FUNDO], R1	; seleciona o cenário de fundo
 	MOV  SP, SP_inicial	
-    CALL inicio_desenha_nave    ; desenha
-    MOV  R6, LINHA_TECLADO		; inicializa R6 com o valor da primeira linha a ser lida
-	CALL inicia_energia_display ; Inicializa display a 100
-
+    CALL inicio_desenha_meteoro_mau    ; desenha
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    CALL mover_meteoro_mau
+    JMP fim
      
 
 fim:
@@ -221,53 +250,31 @@ desenha_pixels_nave:       		; desenha os pixels da figura a partir da tabela co
 
 
 
-posição_meteoro_mau:
-    MOV R7, 1
 
-inicio_desenha_meteoro_mau:
-	MOV R9, [POSIÇAO_METEORO]
-    MOV R8, [DEF_METEORO_MAU]   ;altura do meteoro mau
-    MOV	R4, DEF_METEORO_MAU		; endereço da tabela que define o boneco
-    ADD R4, 4           ; endereço da cor do 1º pixel 
-    JMP desenha_meteoro_mau
-
-
-
-
-
-
-
-desenha_meteoro_mau:       		; desenha o meteoro mau a partir da tabela			; cópia da coluna do meteoro
-	MOV R6, COLUNA_METEORO
-	MOV	R5, [DEF_METEORO_MAU+2]			; obtém a largura do meteoro
-    JMP desenha_pixels
-
-
-desenha_pixels:       		; desenha os pixels da figura a partir da tabela correspondente
-	MOV	R3, [R4]			; obtém a cor do próximo pixel 
-	MOV  [DEFINE_LINHA], R9	; seleciona a linha
-	MOV  [DEFINE_COLUNA], R6	; seleciona a coluna
-	MOV  [DEFINE_PIXEL], R3	; altera a cor do pixel na linha e coluna selecionadas
-	ADD	R4, 2			; endereço da cor do próximo pixel (2 porque cada cor de pixel é uma word)
-    ADD  R6, 1               ; próxima coluna
-    SUB  R5, 1			; menos uma coluna para tratar
-    JNZ  desenha_pixels      ; continua até percorrer toda a largura do objeto
-	ADD R9, 1               ; aumenta a linha
-         
-	SUB R8, 1
-    JNZ desenha_meteoro_mau
-    CALL inicio_ciclo_atraso
-    JMP inicio_apaga_meteoro_mau
-
-
-
-
-    
-
-inicio_apaga_meteoro_mau:	
+mover_meteoro_mau:	
+    PUSH R1
+    PUSH R2
+    PUSH R3
+    PUSH R4
+    PUSH R5
+    PUSH R6
+    PUSH R8
+    PUSH R9
 	MOV R9, [POSIÇAO_METEORO]	;cópia da linha do meteoro
 	MOV R8, [DEF_METEORO_MAU]
-    JMP apaga_meteoro_mau
+    CALL apaga_meteoro_mau
+
+fim_movimento_meteoro:
+    POP R9
+    POP R8
+    POP R6
+    POP R5
+    POP R4
+    POP R3
+    POP R2
+    POP R1
+    RET
+
 
 apaga_meteoro_mau:       		; desenha o boneco a partir da tabela
     MOV R6, COLUNA_METEORO
@@ -293,26 +300,45 @@ apaga_pixels:       		; desenha os pixels do boneco a partir da tabela
 
 linha_seguinte:
 	MOV R2, [POSIÇAO_METEORO]
-	ADD R2, R7			; para desenhar objeto na coluna seguinte (direita ou esquerda)
+	ADD R2, 1			; para desenhar objeto na coluna seguinte (direita ou esquerda)
 	MOV [POSIÇAO_METEORO], R2
     MOV R1, MAX_LINHA
     CMP R9, R1
     JLE inicio_desenha_meteoro_mau
-	;RET????=?
+    RET
 
 
+
+inicio_desenha_meteoro_mau:
+	MOV R9, [POSIÇAO_METEORO]
+    MOV R8, [DEF_METEORO_MAU]   ;altura do meteoro mau
+    MOV	R4, DEF_METEORO_MAU		; endereço da tabela que define o boneco
+    ADD R4, 4           ; endereço da cor do 1º pixel 
+    JMP desenha_meteoro_mau
+
+
+desenha_meteoro_mau:       		; desenha o meteoro mau a partir da tabela			; cópia da coluna do meteoro
+	MOV R6, COLUNA_METEORO
+	MOV	R5, [DEF_METEORO_MAU+2]			; obtém a largura do meteoro
+    JMP desenha_pixels_meteoro
+
+
+desenha_pixels_meteoro:       		; desenha os pixels da figura a partir da tabela correspondente
+	MOV	R3, [R4]			; obtém a cor do próximo pixel 
+	MOV  [DEFINE_LINHA], R9	; seleciona a linha
+	MOV  [DEFINE_COLUNA], R6	; seleciona a coluna
+	MOV  [DEFINE_PIXEL], R3	; altera a cor do pixel na linha e coluna selecionadas
+	ADD	R4, 2			; endereço da cor do próximo pixel (2 porque cada cor de pixel é uma word)
+    ADD  R6, 1               ; próxima coluna
+    SUB  R5, 1			; menos uma coluna para tratar
+    JNZ  desenha_pixels_meteoro      ; continua até percorrer toda a largura do objeto
+	ADD R9, 1               ; aumenta a linha
+         
+	SUB R8, 1
+    JNZ desenha_meteoro_mau
+    CALL inicio_ciclo_atraso
+    RET
     
-
-
-
-
-
-
-
-
-
-
-
 
 
 inicio_ciclo_atraso:
@@ -323,31 +349,6 @@ ciclo_atraso:	;;usado para meteoros e naves
 	JNZ	ciclo_atraso
 	POP R11
 	RET 
-
-
-
-
-
-
-;;;apaga pixels
-
-
-
-
-
-inverte_para_direita:
-	MOV	R7, 1			; passa a deslocar-se para a direita
-	JMP	desenha_col_seguinte
-
-inverte_para_esquerda:
-	MOV	R7, -1			; passa a deslocar-se para a esquerda
-	
-
-;;
-anda_para_cima_ou_esquerda:
-	MOV	R7, -1			; passa a deslocar-se para a direita
-
-
 
 
 
