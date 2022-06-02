@@ -90,7 +90,7 @@ fim:
     JMP fim
 
 
-mover_esquerda:		            ; Vê se o boneco chegou ao limite esquerdo
+mover_nave_esquerda:		            ; Vê se o boneco chegou ao limite esquerdo
     PUSH R9
     PUSH R8
     PUSH R7
@@ -116,6 +116,39 @@ fim_movimento_esquerda:
     POP R8
     POP R9
     RET
+
+
+mover_nave_direita:		
+    PUSH R9
+    PUSH R8
+    PUSH R7
+    PUSH R6
+    PUSH R5
+    PUSH R4
+    PUSH R3
+    PUSH R2
+	MOV	R6, [DEF_NAVE+2]	; obtém a largura do boneco (primeira WORD da tabela)
+	MOV R2, [POSIÇAO_NAVE]   ; Vai buscar a Linha onde a Nave se encontra
+	ADD R6, R2                 ; obtém a posiçao da ultima coluna
+	MOV	R5, MAX_COLUNA
+	CMP	R6, R5
+	JGT	fim_movimento_direita   ; Caso se verifique acaba o movimento 
+    MOV R7, 1                  ; Indica o sentido do movimento
+    CALL inicio_apaga_nave      ; Apaga a Nave
+	CALL desenha_col_seguinte   ;inicia desenho
+fim_movimento_direita:
+    POP R2
+    POP R3
+    POP R4
+    POP R5
+    POP R6
+    POP R7
+    POP R8
+    POP R9
+    RET
+
+
+
 inicio_apaga_nave:	
     MOV R9, LINHA_NAVE
     MOV R8, [DEF_NAVE]
@@ -138,7 +171,6 @@ apaga_pixels_nave:       		; desenha os pixels do boneco a partir da tabela
 	JNZ apaga_linha_nave        ; Continua o loop  
     RET
 
-;hahaha
 
 desenha_col_seguinte:
 	MOV R2, [POSIÇAO_NAVE]
@@ -180,6 +212,9 @@ desenha_pixels_nave:       		; desenha os pixels da figura a partir da tabela co
     ;POP R8
     ;POP R9
 	RET
+
+
+
 
 
 ;;BURUh
@@ -265,18 +300,7 @@ linha_seguinte:
     JLE inicio_desenha_meteoro_mau
 	;RET????=?
 
-mover_direita:		; vê se o boneco chegou ao limite direito
-	MOV	R6, [DEF_NAVE+2]	; obtém a largura do boneco (primeira WORD da tabela)
-	MOV R2, [POSIÇAO_NAVE]   ; Vai buscar a Linha onde a Nave se encontra
-	ADD R6, R2                 ; obtém a posiçao da ultima coluna
-	MOV	R5, MAX_COLUNA
-	CMP	R6, R5
-	JGT	fim_movimento_direita   ; Caso se verifique acaba o movimento 
-    MOV R7, 1                  ; Indica o sentido do movimento
-    CALL inicio_apaga_nave      ; Apaga a Nave
-	CALL desenha_col_seguinte   ;inicia desenho
-fim_movimento_direita:
-    RET
+
     
 
 
