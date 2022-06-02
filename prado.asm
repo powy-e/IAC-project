@@ -310,13 +310,13 @@ mover_nave_direita:
     PUSH R2
 	MOV	R6, [DEF_NAVE+2]		; obtém a largura do boneco (primeira WORD da tabela)
 	MOV R2, [POSIÇAO_NAVE]   	; Vai buscar a Linha onde a Nave se encontra
-	ADD R6, R2                 	; obtém a posiçao da ultima coluna
-	MOV	R5, MAX_COLUNA
+	ADD R6, R2                 	; obtém a posiçao da última coluna da nave
+	MOV	R5, MAX_COLUNA			; obtem ultima coluna à direita do ecrã
 	CMP	R6, R5
-	JGT	fim_movimento_direita   ; Caso se verifique acaba o movimento 
+	JGT	fim_movimento_direita   ; Caso a nave já ocupe a ultima coluna, não se move 
     MOV R7, 1                  	; Indica o sentido do movimento
     CALL inicio_apaga_nave      ; Apaga a Nave
-	CALL desenha_col_seguinte   ;inicia desenho
+	CALL desenha_col_seguinte   ; Inicia desenho
 fim_movimento_direita:
     POP R2
     POP R3
@@ -331,8 +331,8 @@ fim_movimento_direita:
 
 
 inicio_apaga_nave:	
-    MOV R9, LINHA_NAVE
-    MOV R8, [DEF_NAVE]
+    MOV R9, LINHA_NAVE			; linha onde começa a nave
+    MOV R8, [DEF_NAVE]			; altura da nave que serve como contador de linhas
 	JMP apaga_linha_nave
 apaga_linha_nave:       		; desenha o boneco a partir da tabela
 	MOV	R6, [POSIÇAO_NAVE]		; cópia da coluna do boneco
@@ -356,15 +356,15 @@ apaga_pixels_nave:       		; desenha os pixels do boneco a partir da tabela
 desenha_col_seguinte:
 	MOV R2, [POSIÇAO_NAVE]
 	ADD	R2, R7			        ; para desenhar objeto na coluna seguinte (direita ou esquerda)
-	MOV [POSIÇAO_NAVE], R2
+	MOV [POSIÇAO_NAVE], R2		; atualiza a coluna onde começa o desenho da nave
 	JMP	inicio_desenha_nave		; vai desenhar o boneco de novo
 
 inicio_desenha_nave:
     ;PUSH R9
     ;PUSH R8
     ;PUSH R4
-    MOV R9, LINHA_NAVE          ;linha da nave
-    MOV R8, [DEF_NAVE]
+    MOV R9, LINHA_NAVE          ; linha onde começa a nave
+    MOV R8, [DEF_NAVE]			; cópia da altura que serve como contador de linhas
     MOV	R4, DEF_NAVE		    ; endereço da tabela que define a nave
     ADD R4, 4			        ; endereço da cor do 1º pixel (4 porque a largura e altura são words)
     JMP desenha_linha_nave
@@ -385,7 +385,7 @@ desenha_pixels_nave:       		; desenha os pixels da figura a partir da tabela co
     JNZ  desenha_pixels_nave    ; continua até percorrer toda a largura do objeto
 	ADD R9, 1                   ; aumenta a linha
          
-	SUB R8, 1
+	SUB R8, 1					;reduz contador das linhas por desenhas
     JNZ desenha_linha_nave
 	
 	CALL inicio_ciclo_atraso
@@ -413,8 +413,8 @@ mover_meteoro_mau:
     PUSH R6
     PUSH R8
     PUSH R9
-	MOV R9, [POSIÇAO_METEORO]	;cópia da linha do meteoro
-	MOV R8, [DEF_METEORO_MAU]
+	MOV R9, [POSIÇAO_METEORO]	;cópia da linha onde se encontra o meteoro
+	MOV R8, [DEF_METEORO_MAU]	;cópia da altura que serve como contador das linhas
     CALL apaga_meteoro_mau
 
 fim_movimento_meteoro:
@@ -437,16 +437,16 @@ apaga_meteoro_mau:
     JMP apaga_pixels
 
 apaga_pixels:       		; desenha os pixels do boneco a partir da tabela
-	MOV	R3, 0			; para apagar, a cor do pixel é sempre 0
+	MOV	R3, 0				; para apagar, a cor do pixel é sempre 0
 	MOV  [DEFINE_LINHA], R9	; seleciona a linha
-	MOV  [DEFINE_COLUNA], R6	; seleciona a coluna
+	MOV  [DEFINE_COLUNA], R6; seleciona a coluna
 	MOV  [DEFINE_PIXEL], R3	; altera a cor do pixel na linha e coluna selecionadas
-     ADD  R6, 1               ; próxima coluna
-     SUB  R5, 1			; menos uma coluna para tratar
+     ADD  R6, 1             ; próxima coluna
+     SUB  R5, 1				; menos uma coluna para tratar
      JNZ  apaga_pixels		; continua até percorrer toda a largura do objeto
 	
-	ADD R9, 1
-    SUB R8, 1
+	ADD R9, 1				;avança para a linha seguinte
+    SUB R8, 1				;reduz contador das linhas por apagar
 	JNZ apaga_meteoro_mau
     CALL inicio_ciclo_atraso
     JMP linha_seguinte
@@ -494,7 +494,7 @@ desenha_pixels_meteoro:
     JNZ  desenha_pixels_meteoro      ; continua até percorrer toda a largura do objeto
 	ADD R9, 1               ; aumenta a linha
          
-	SUB R8, 1
+	SUB R8, 1				; reduz contador das linhas por desenhar
     JNZ desenha_meteoro_mau
     CALL inicio_ciclo_atraso
     RET
