@@ -40,7 +40,8 @@ LINHA_NAVE        		EQU  28        ; linha do boneco (a meio do ecrã))
 COLUNA_INICIAL_NAVE		EQU  30        ; coluna do boneco (a meio do ecrã)
 LINHA_APOS_NAVE         EQU 32         ;linha após linha final da nave
 ALTURA_NAVE             EQU 4
-COR_PIXEL_NAVE		    EQU	0FFAAH		; cor do pixel: vermelho em ARGB (opaco e vermelho no máximo, verde e azul a 0)
+COR_PIXEL_ROSA		    EQU	0FFAAH		; cor do pixel: vermelho em ARGB (opaco e vermelho no máximo, verde e azul a 0)
+COR_PIXEL_LILAS	EQU	0FAAFH
 
 LINHA_INICIAL_METEORO   EQU 0
 COLUNA_METEORO          EQU 44
@@ -51,7 +52,6 @@ MAX_LINHA       EQU 31
 MIN_COLUNA		EQU  0		; número da coluna mais à esquerda que o objeto pode ocupar
 MAX_COLUNA		EQU  63        ; número da coluna mais à direita que o objeto pode ocupar
 LARGURA_FIGURAS		EQU	5			; largura do boneco
-
 
 
 ; *********************************************************************************
@@ -70,10 +70,10 @@ vida:
 
 DEF_NAVE:					; tabela que define a nave 
 	WORD		ALTURA_NAVE, LARGURA_FIGURAS
-    WORD		0, 0, COR_PIXEL_NAVE, 0, 0
-	WORD		COR_PIXEL_NAVE, 0, COR_PIXEL_NAVE, 0, COR_PIXEL_NAVE		; # # #   as cores podem ser diferentes
-    WORD		COR_PIXEL_NAVE, COR_PIXEL_NAVE, COR_PIXEL_NAVE, COR_PIXEL_NAVE, COR_PIXEL_NAVE
-    WORD		0, COR_PIXEL_NAVE, 0, COR_PIXEL_NAVE, 0
+    WORD		0, 0, COR_PIXEL_ROSA, 0, 0
+	WORD		COR_PIXEL_LILAS, 0, COR_PIXEL_LILAS, 0, COR_PIXEL_LILAS		; # # #   as cores podem ser diferentes
+    WORD		COR_PIXEL_ROSA, COR_PIXEL_LILAS, COR_PIXEL_ROSA, COR_PIXEL_LILAS, COR_PIXEL_ROSA
+    WORD		0, COR_PIXEL_LILAS, 0, COR_PIXEL_LILAS, 0
 
 POSIÇAO_NAVE:
 	WORD COLUNA_INICIAL_NAVE
@@ -130,7 +130,7 @@ mover_direita:
 	CMP R0, TECLA_DIREITA
 	JNZ baixar_meteoro
 	CALL mover_nave_direita
-	JMP espera_nao_tecla
+	JMP espera_tecla
 
 baixar_meteoro:
 	CMP R0, TECLA_METEORO_BAIXO
@@ -429,8 +429,9 @@ fim_movimento_meteoro:
     RET
 
 
-apaga_meteoro_mau:       		; desenha o boneco a partir da tabela
-    MOV R6, COLUNA_METEORO
+apaga_meteoro_mau:       		
+
+	MOV R6, COLUNA_METEORO
 	MOV	R4, DEF_METEORO_MAU		; endereço da tabela que define o boneco
 	MOV	R5, [R4+2]			; obtém a largura do boneco
     JMP apaga_pixels
@@ -472,13 +473,17 @@ inicio_desenha_meteoro_mau:
     JMP desenha_meteoro_mau
 
 
-desenha_meteoro_mau:       		; desenha o meteoro mau a partir da tabela			; cópia da coluna do meteoro
-	MOV R6, COLUNA_METEORO
+desenha_meteoro_mau:       		; desenha o meteoro mau a partir da tabela			
+    MOV R1, MAX_LINHA			; obtem o endereço da linha linha do ecrã
+	CMP R9, R1					; verifica se a proxima linha do meteoro está fora do ecrã 
+	JGT fora_de_linhas			; nesse caso, interrompe o desenho 
+
+	MOV R6, COLUNA_METEORO				; cópia da coluna do meteoro
 	MOV	R5, [DEF_METEORO_MAU+2]			; obtém a largura do meteoro
-    JMP desenha_pixels_meteoro
+	JMP desenha_pixels_meteoro
 
 
-desenha_pixels_meteoro:       		; desenha os pixels da figura a partir da tabela correspondente
+desenha_pixels_meteoro:       		
 	MOV	R3, [R4]			; obtém a cor do próximo pixel 
 	MOV  [DEFINE_LINHA], R9	; seleciona a linha
 	MOV  [DEFINE_COLUNA], R6	; seleciona a coluna

@@ -33,6 +33,20 @@ ATRASO			EQU	 5000H   ;0F00H   		; 400H atraso para limitar a velocidade de movi
 
 LARGURA_FIGURAS		EQU	5			; largura do boneco
 
+
+COR_PIXEL_VERDE	EQU	0FAFAH
+COR_PIXEL_AZUL	EQU	0FAFFH
+COR_PIXEL_LILAS	EQU	0FAAFH
+
+VERMELHO EQU	0FF00H
+LARANJA EQU	0FF50H
+LARANJA2 EQU 0FFA5H
+AMARELO EQU	0FFF0H
+AMARELO2 EQU 0FFFAH
+VERDE EQU	0FAF5H
+AZUL EQU	0F0AFH
+LILAS EQU	0FAAFH
+
 PLACE 1000H
 pilha:
 	STACK 100H			; espa�o reservado para a pilha 
@@ -46,12 +60,14 @@ SP_inicial:				; este � o endere�o (1200H) com que o SP deve ser
 ; #######################################################################
 PLACE		0200H				
 
+
 DEF_NAVE:					; tabela que define a nave 
 	WORD		ALTURA_NAVE, LARGURA_FIGURAS
-    WORD		0, 0, COR_PIXEL_NAVE, 0, 0
-	WORD		COR_PIXEL_NAVE, 0, COR_PIXEL_NAVE, 0, COR_PIXEL_NAVE		; # # #   as cores podem ser diferentes
-    WORD		COR_PIXEL_NAVE, COR_PIXEL_NAVE, COR_PIXEL_NAVE, COR_PIXEL_NAVE, COR_PIXEL_NAVE
-    WORD		0, COR_PIXEL_NAVE, 0, COR_PIXEL_NAVE, 0
+    WORD		0, 0, AMARELO2, 0, 0
+	WORD		VERMELHO, 0, AMARELO, 0, AZUL		; # # #   as cores podem ser diferentes
+    WORD		VERMELHO, LARANJA, AMARELO, VERDE, AZUL
+    WORD		0, LARANJA2, 0, COR_PIXEL_VERDE, 0
+
 
 POSIÇAO_NAVE:
 	WORD COLUNA_INICIAL_NAVE
