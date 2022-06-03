@@ -109,6 +109,7 @@ inicio:
 	MOV	 R1, 0			        			; cenário de fundo número 0
     MOV  [SELECIONA_CENARIO_FUNDO], R1		; seleciona o cenário de fundo
 	MOV  SP, SP_inicial						; inicializa o SP (stack pointer)
+    MOV R2, [POSIÇAO_NAVE]					; Argumento posição da Nave (coluna) 
 	MOV R7,0								; Argumento offset da Nave
 	CALL desenha_col_offset    				; desenha a nave na sua posição inicial
 	;CALL inicio_desenha_meteoro_mau			; desenha o meteoro mau na sua posição inicial
@@ -331,9 +332,9 @@ mover_nave_esquerda:
 	MOV R2, [POSIÇAO_NAVE]      ; Vai buscar a Coluna onde a Nave se encontra
 	CMP	R2, R7                  ; Verifica se a nave se encontra na coluna limite
 	JLE	fim_movimento_esquerda  ; Se sim, acaba o movimento    
-	MOV R7, -1                  ; Indica o sentido do movimento e guarda em offset
+	MOV R7, -1                  ; Indica o sentido do movimento
     CALL inicio_apaga_nave      ; Chama a rotina que apaga a Nave
-    CALL desenha_col_offset   	; Chama a rotina que inicia o desenho da Nave
+    CALL desenha_col_offset   ; Chama a rotina que inicia o desenho da Nave
 	
 fim_movimento_esquerda:
     POP R2
@@ -415,17 +416,16 @@ apaga_pixels_nave:
 	POP R9	
     RET
 
-; R7 É ARGUMENTO
+; R7, R2 É ARGUMENTO
 desenha_col_offset:
     PUSH R9
     PUSH R8
 	PUSH R6
 	PUSH R5
     PUSH R4
-	PUSH R3
-	MOV R3, [POSIÇAO_NAVE]		; Vai buscar a posição da nave à nave
-	ADD	R3, R7			        ; para desenhar objeto na coluna seguinte (direita ou esquerda)
-	MOV [POSIÇAO_NAVE], R3		; atualiza a coluna onde começa o desenho da nave
+	PUSH R2
+	ADD	R2, R7			        ; para desenhar objeto na coluna seguinte (direita ou esquerda)
+	MOV [POSIÇAO_NAVE], R2		; atualiza a coluna onde começa o desenho da nave
     MOV R9, LINHA_NAVE          ; linha onde começa a nave
     MOV R8, [DEF_NAVE]			; cópia da altura que serve como contador de linhas
     MOV	R4, DEF_NAVE		    ; endereço da tabela que define a nave
@@ -434,10 +434,10 @@ desenha_linha_nave:       		; desenha a nave a partir da tabela
 	MOV	R6, [POSIÇAO_NAVE]		; cópia da coluna da nave
 	MOV	R5, [DEF_NAVE+2]		; obtém a largura da nave
 desenha_pixels_nave:       		; desenha os pixels da figura a partir da tabela correspondente
-	MOV	R3, [R4]			    ; obtém a cor do próximo pixel 
+	MOV	R2, [R4]			    ; obtém a cor do próximo pixel 
 	MOV  [DEFINE_LINHA], R9	    ; seleciona a linha
 	MOV  [DEFINE_COLUNA], R6	; seleciona a coluna
-	MOV  [DEFINE_PIXEL], R3	    ; altera a cor do pixel na linha e coluna selecionadas
+	MOV  [DEFINE_PIXEL], R2	    ; altera a cor do pixel na linha e coluna selecionadas
 	ADD	 R4, 2			        ; endereço da cor do próximo pixel (2 porque cada cor de pixel é uma word)
     ADD  R6, 1                  ; próxima coluna
     SUB  R5, 1			        ; menos uma coluna para tratar
@@ -448,7 +448,7 @@ desenha_pixels_nave:       		; desenha os pixels da figura a partir da tabela co
     JNZ desenha_linha_nave
 	
 	CALL inicio_ciclo_atraso
-    POP R3
+	POP R2
 	POP R4
     POP R5
 	POP R6
