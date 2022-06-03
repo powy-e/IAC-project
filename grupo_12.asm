@@ -1,7 +1,7 @@
 ; *********************************************************************************
-; * Ficheiro:  grupo_102415_102430_102463.asm
+; * Ficheiro:  grupo_12.asm
 ; * Descrição: Ficheiro de código Assembly para o PEPE-16 relativo
-; * 		   à versão intermédia do projeto de IAC do grupo xx.
+; * 		   à versão intermédia do projeto de IAC do grupo 12.
 ; *
 ; *	Beatriz Gavilan - 102463 - beatrizgavilan@tecnico.ulisboa.pt
 ; *	Eduardo Nazário - 102415 - eduardo.nazario@tecnico.ulisboa.pt
