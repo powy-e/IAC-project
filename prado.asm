@@ -120,68 +120,70 @@ inicio:
 	CALL inicia_energia_display 		; inicializa o display da energia ao seu valor inicial predefinido (100)
      
 ; *
-; * ESPERA_NAO_TECLA - Espera até que nenhuma tecla esteja a ser pressionada
+; * ESPERA_NAO_TECLA - Executa um ciclo até que nenhuma tecla esteja premida
+; * Argumentos: R0 - valor que define a tecla premida
 ; *
-espera_nao_tecla:						; neste ciclo espera-se até NÃO haver nenhuma tecla premida
-	CALL teclado						; leitura às teclas dado a linha (R6) anteriormente gravada
-	CMP	 R0, -1							; se R0 = -1, nenhuma tecla está a ser premida 
-	JNZ	 espera_nao_tecla				; espera, enquanto houver tecla uma tecla carregada
+; *
+espera_nao_tecla:                           ; Neste ciclo espera-se até NÃO haver nenhuma tecla premida
+   CALL teclado                            ; Leitura às teclas dado a linha (R6) anteriormente gravada
+   CMP  R0, -1                             ; Se R0 = -1, nenhuma tecla está a ser premida
+   JNZ  espera_nao_tecla                   ; Espera, enquanto houver tecla uma tecla carregada
 
 ; *
 ; * ESPERA_TECLA - Executa um ciclo até que uma tecla seja premida e, consoante a tecla, executa uma operação específica
-; * Argumentos:	R0 - valor que define a tecla premida
-; *				R6 - valor que define a linha a ser lida
-; * 			R9 - valor auxiliar usado para tocar um som quando se baixa um meteoro
+; * Argumentos: R0 - valor que define a tecla premida
+; *             R6 - valor que define a linha a ser lida
+; *             R9 - valor auxiliar usado para tocar um som quando se baixa um meteoro
 ; *
-espera_tecla:							; neste ciclo espera-se até uma tecla ser premida
-	ADD R6, R6							; linha a testar no teclado
-	MOV TEMP, 16						; define TEMP como o primeiro valor inválido para as linhas (R6)
-	CMP R6, TEMP						; compara o R6 com o seu primeiro valor inválido (16)
-	JNZ espera_tecla_body				; caso R6 seja um valor admissível (pertença a (1, 2, 4, 8)), avança para o ciclo
-	MOV R6, 1							; caso R6 não seja um valor admissível (igual a 16), faz-se "reset" a R6
-										; assim, procede-se a um ciclo em que R6 assume os valores (1, 2, 4, 8)
-espera_tecla_body:				
-	CALL teclado						; a cada iteração, verifica-se se há alguma tecla premida na linha correspondente ao valor de R6 
-										; a rotina "teclado" retorna um valor entre -1 e FH, sendo que
-										; todos os valores entre 0H e FH correspondem a teclas e são retornados no caso de se detetar
-										; que essa tecla está a ser premida
-										; e o valor -1 é retornado no evento de nenhuma tecla estiver a ser premida na linha testada
-	CMP	 R0, -1							; caso nenhuma tecla estiver a ser premida na linha indicada por R6, espera
-	JZ	 espera_tecla						
-										; caso contrário, consoante o valor da tecla premida, chamam-se rotinas específicas
-mover_esquerda:				
-	CMP	R0, TECLA_ESQUERDA 				; testa se a tecla premida é a tecla correspondente a movimentar a nave para a esquerda
-	JNZ mover_direita					; caso não for o caso, procede ao próximo teste
-	CALL mover_nave_esquerda			; caso for o caso, chama a rotina "mover_nave_esquerda"
-	JMP espera_tecla					; após processar o movimento, torna a ler o input do teclado
-										; NOTA: como o movimento da nave é contínua, saltamos para "espera_tecla" em vez de "espera_nao_tecla"
-mover_direita:				
-	CMP R0, TECLA_DIREITA				; testa se a tecla premida é a tecla correspondente a movimentar a nave para a esquerda
-	JNZ baixar_meteoro					; caso não for o caso, procede ao próximo teste
-	CALL mover_nave_direita				; caso for o caso, chama a rotina "mover_nave_esquerda"
-	JMP espera_tecla					; após processar o movimento, torna a ler o input do teclado
-										; NOTA: como o movimento da nave é contínua, saltamos para "espera_tecla" em vez de "espera_nao_tecla"
+espera_tecla:                              
+   ADD R6, R6                              ; Linha a testar no teclado
+   MOV TEMP, 16                           
+   CMP R6, TEMP                           
+   JNZ espera_tecla_body                   ; Caso R6 seja um valor admissível (pertença a (1, 2, 4, 8)), avança para o ciclo
+   MOV R6, 1                               ; Caso R6 não seja um valor admissível (igual a 16), faz-se "reset" a R6
+                                           ; Assim, procede-se a um ciclo em que R6 assume os valores (1, 2, 4, 8)
+espera_tecla_body:             
+   CALL teclado                            ; A cada iteração, verifica-se se há alguma tecla premida na linha correspondente ao valor de R6
+                                           ; A rotina "teclado" retorna um valor entre -1 e FH, sendo que
+                                           ; todos os valores entre 0H e FH correspondem a teclas e são retornados no caso de se detetar
+                                           ; que essa tecla está a ser premida
+                                           ; e o valor -1 é retornado no evento de nenhuma tecla estiver a ser premida na linha testada
+   CMP  R0, -1                             ; Caso nenhuma tecla estiver a ser premida na linha indicada por R6, espera
+   JZ   espera_tecla                      
+                                           ; Caso contrário, consoante o valor da tecla premida, chamam-se rotinas específicas
+mover_esquerda:            
+   CMP R0, TECLA_ESQUERDA                 
+   JNZ mover_direita                       ; Passa ao próximo teste
+   CALL mover_nave_esquerda               
+   JMP espera_tecla                        ; Após processar o movimento, torna a ler o input do teclado
+                                           ; NOTA: como o movimento da nave é contínua, saltamos para "espera_tecla" em vez de "espera_nao_tecla"
+mover_direita:             
+   CMP R0, TECLA_DIREITA                  
+   JNZ baixar_meteoro                      ; Passa ao próximo teste
+   CALL mover_nave_direita                
+   JMP espera_tecla                        ; Após processar o movimento, torna a ler o input do teclado
+                                           ; NOTA: como o movimento da nave é contínua, saltamos para "espera_tecla" em vez de "espera_nao_tecla"
 baixar_meteoro:
-	CMP R0, TECLA_METEORO_BAIXO			; testa se a tecla premida é a tecla correspondente a movimentar o meteoro para baixo
-	JNZ aumenta_display					; caso não for o caso, procede ao próximo teste
-	MOV	R9, 0			    			; caso for o caso, move para R9 o som de código 0
-	MOV [TOCA_SOM], R9					; toca esse mesmo som
-	CALL mover_meteoro_mau				; e chama a rotina "mover_meteoro_mau"
-	JMP espera_nao_tecla				; após processar o movimento, espera que a tecla deixe de ser premida e depois torna a ler o input do teclado
-
+   CMP R0, TECLA_METEORO_BAIXO            
+   JNZ aumenta_display                     ; Passa ao próximo teste
+   MOV R9, 0                               ; Move para R9 o som de código 0
+   MOV [TOCA_SOM], R9                      ; Toca esse mesmo som
+   CALL mover_meteoro_mau                  
+   JMP espera_nao_tecla                    ; Após processar o movimento, espera que a tecla deixe de ser premida e depois torna a ler o input do teclado
+ 
 aumenta_display:
-	MOV R3, TECLA_AUMENTA_DISPLAY		; testa se a tecla premida é a tecla correspondente a aumentar a energia da nave
-	CMP R0, R3							; NOTA: aqui usamos um registo intermédia (R3) uma vez que o valor de TECLA_AUMENTA_DISPLAY excede a gama admitida em constantes
-	JNZ diminui_display					; caso não for o caso, procede ao próximo teste
-	CALL aumenta_energia_display		; caso for o caso, chama a rotina "aumenta_energia_display"
-	JMP espera_nao_tecla				; após processar a operação, espera que a tecla deixe de ser premida e depois torna a ler o input do teclado
+   MOV R3, TECLA_AUMENTA_DISPLAY          
+   CMP R0, R3                             
+   JNZ diminui_display                     ; Passa ao próximo teste
+   CALL aumenta_energia_display           
+   JMP espera_nao_tecla                    ; Após processar a operação, espera que a tecla deixe de ser premida e depois torna a ler o input do teclado
 diminui_display:
-	MOV R3, TECLA_DIMINUI_DISPLAY		; testa se a tecla premida é a tecla correspondente a diminuir a energia da nave
-	CMP R0, R3							; NOTA: aqui usamos um registo intermédia (R3) uma vez que o valor de TECLA_DIMINUI_DISPLAY excede a gama admitida em constantes
-	JNZ espera_tecla					; caso não for o caso, torna a ler o input do teclado
-	CALL diminui_energia_display		; caso for o caso, chama a rotina "diminui_energia_display"
-	JMP espera_nao_tecla				; após processar a operação, espera que a tecla deixe de ser premida e depois torna a ler o input do teclado
-	
+   MOV R3, TECLA_DIMINUI_DISPLAY          
+   CMP R0, R3                              ; NOTA: aqui usamos um registo intermédia (R3) uma vez que o valor de TECLA_DIMINUI_DISPLAY excede a gama admitida em constantes
+   JNZ espera_tecla                        ; Torna a ler o input do teclado
+   CALL diminui_energia_display           
+   JMP espera_nao_tecla                    ; Após processar a operação, espera que a tecla deixe de ser premida e depois torna a ler o input do teclado
+  	
 ; *
 ; * ATRASO - Executa um ciclo para implementar um atraso.
 ; * Argumentos:	R11 - valor que define o atraso
@@ -190,9 +192,9 @@ diminui_display:
 inicio_ciclo_atraso:
 	PUSH R11
 	MOV R11, ATRASO							
-ciclo_atraso:							; ciclo usado para "fazer tempo" entre movimentos sucessivos de naves e meteoros
+ciclo_atraso:							; Ciclo usado para "fazer tempo" entre movimentos sucessivos de naves e meteoros
 	SUB	R11, 1								
-	JNZ	ciclo_atraso					; espera até que, por subtrações sucessivas, R11 fique a 0
+	JNZ	ciclo_atraso					; Espera até que, por subtrações sucessivas, R11 fique a 0
 	POP R11
 	RET 
 
@@ -209,21 +211,21 @@ teclado:
 	PUSH	R3							; Guarda o valor de todos os registos utilizados
 	PUSH	R5
 	PUSH 	R6
-	MOV  R2, TEC_LIN   					; endereço do periférico das linhas
-	MOV  R3, TEC_COL   					; endereço do periférico das colunas
-	MOV  R5, MASCARA   					; para isolar os 4 bits de menor peso, ao ler as colunas do teclado
-	MOVB [R2], R6      					; escrever no periférico de saída (linhas)
-	MOVB R0, [R3]      					; ler do periférico de entrada (colunas)
-	AND  R0, R5        					; elimina bits para além dos bits 0-3
+	MOV  R2, TEC_LIN   					; Endereço do periférico das linhas
+	MOV  R3, TEC_COL   					; Endereço do periférico das colunas
+	MOV  R5, MASCARA   					; Para isolar os 4 bits de menor peso, ao ler as colunas do teclado
+	MOVB [R2], R6      					; Escrever no periférico de saída (linhas)
+	MOVB R0, [R3]      					; Ler do periférico de entrada (colunas)
+	AND  R0, R5        					; Elimina bits para além dos bits 0-3
 	CMP R0, 0			
-	JZ teclado_nenhuma_tecla_premida	; caso o valor da coluna lida seja 0 (isto é, não houver nenhuma tecla premida),
+	JZ teclado_nenhuma_tecla_premida	; Caso o valor da coluna lida seja 0 (isto é, não houver nenhuma tecla premida),
 										; retorna como valor final da rotina a constante -1 e termina
 	CALL formata_linha					; caso haja uma tecla premida, converte o valor da linha lida
 										; de (1, 2, 3, 4) para (0, 1, 2, 3)
 	CALL formata_coluna					; e faz a mesma operação para o valor da coluna lida
 	MOV TEMP, 4							
 	MUL R6, TEMP
-	ADD R0, R6							; o valor da tecla é definido como sendo:
+	ADD R0, R6							; O valor da tecla é definido como sendo:
 										; 	tecla = 4 * linha + coluna
 	JMP teclado_saida					
 teclado_nenhuma_tecla_premida:
@@ -235,37 +237,37 @@ teclado_saida:
 	POP	R2
 	RET
 
-; * (Rotina auxiliar)
+; * (Função auxiliar)
 ; * FORMATA_LINHA - Converte o valor da linha lida de (1, 2, 4, 8) em (0, 1, 2, 3)
-; * Argumentos:	R6 - valor da linha lida em (1, 2, 4, 8)
+; * Argumentos: R6 - valor da linha lida em (1, 2, 4, 8)
 ; *
-; * Retorna: 	R6 - valor da linha lida em (0, 1, 2, 3)	
+; * Retorna:    R6 - valor da linha lida em (0, 1, 2, 3)   
 ; *
 formata_linha:
-	MOV TEMP, -1
-formata_linha_ciclo:					; para converter o valor da linha lida 
-	ADD TEMP, 1							; de (1, 2, 3, 4) para (0, 1, 2, 3)
-	SHR R6, 1							; contamos o número de vezes que é preciso fazer SHR ao valor da linha
-	CMP R6, 0							; para obter 0
-	JNZ formata_linha_ciclo	
-	MOV R6, TEMP
-	RET
-
-; * (Rotina auxiliar)
+   MOV TEMP, -1
+formata_linha_ciclo:                    ; Para converter o valor da linha lida
+   ADD TEMP, 1                         	; de (1, 2, 3, 4) para (0, 1, 2, 3)
+   SHR R6, 1                           	; contamos o número de vezes que é preciso fazer SHR ao valor da linha
+   CMP R6, 0                           	; para obter 0
+   JNZ formata_linha_ciclo
+   MOV R6, TEMP
+   RET
+ 
+; * (Função auxiliar)
 ; * FORMATA_COLUNA - Converte o valor da coluna lida de (1, 2, 4, 8) em (0, 1, 2, 3)
-; * Argumentos:	R0 - valor da coluna lida em (1, 2, 4, 8)
+; * Argumentos: R0 - valor da coluna lida em (1, 2, 4, 8)
 ; *
-; * Retorna: 	R0 - valor da coluna lida em (0, 1, 2, 3)	
+; * Retorna:    R0 - valor da coluna lida em (0, 1, 2, 3)  
 ; *
 formata_coluna:
-	MOV TEMP, -1
-formata_coluna_ciclo:					; para converter o valor da coluna lida 
-	ADD TEMP, 1							; de (1, 2, 3, 4) para (0, 1, 2, 3)
-	SHR R0, 1							; contamos o número de vezes que é preciso fazer SHR ao valor da linha
-	CMP R0, 0							; para obter 0
-	JNZ formata_coluna_ciclo
-	MOV R0, TEMP
-	RET
+   MOV TEMP, -1
+formata_coluna_ciclo:                   ; Para converter o valor da coluna lida
+   ADD TEMP, 1                         	; de (1, 2, 3, 4) para (0, 1, 2, 3)
+   SHR R0, 1                           	; contamos o número de vezes que é preciso fazer SHR ao valor da linha
+   CMP R0, 0                          	; para obter 0
+   JNZ formata_coluna_ciclo
+   MOV R0, TEMP
+   RET
 	
 
 ; **************************************	
