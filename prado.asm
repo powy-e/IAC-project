@@ -40,8 +40,7 @@ LINHA_NAVE        		EQU  28        ; linha do boneco (a meio do ecrã))
 COLUNA_INICIAL_NAVE		EQU  30        ; coluna do boneco (a meio do ecrã)
 LINHA_APOS_NAVE         EQU 32         ;linha após linha final da nave
 ALTURA_NAVE             EQU 4
-COR_PIXEL_ROSA		    EQU	0FFAAH		; cor do pixel: vermelho em ARGB (opaco e vermelho no máximo, verde e azul a 0)
-COR_PIXEL_LILAS	EQU	0FAAFH
+
 
 LINHA_INICIAL_METEORO   EQU 0
 COLUNA_METEORO          EQU 44
@@ -52,6 +51,18 @@ MAX_LINHA       EQU 31
 MIN_COLUNA		EQU  0		; número da coluna mais à esquerda que o objeto pode ocupar
 MAX_COLUNA		EQU  63        ; número da coluna mais à direita que o objeto pode ocupar
 LARGURA_FIGURAS		EQU	5			; largura do boneco
+
+
+COR_PIXEL_ROSA		    EQU	0FFAAH		; cor do pixel: vermelho em ARGB (opaco e vermelho no máximo, verde e azul a 0)
+COR_PIXEL_LILAS	EQU	0FAAFH
+
+PIXEL_VERMELHO EQU	0FF00H
+PIXEL_LARANJA EQU	0FF50H
+PIXEL_LARANJA2 EQU 0FFA5H
+PIXEL_AMARELO EQU	0FFF0H
+PIXEL_AMARELO2 EQU 0FFFAH
+PIXEL_VERDE EQU	0FAF5H
+PIXEL_AZUL EQU	0F0AFH
 
 
 ; *********************************************************************************
@@ -70,10 +81,10 @@ vida:
 
 DEF_NAVE:					; tabela que define a nave 
 	WORD		ALTURA_NAVE, LARGURA_FIGURAS
-    WORD		0, 0, COR_PIXEL_ROSA, 0, 0
-	WORD		COR_PIXEL_LILAS, 0, COR_PIXEL_LILAS, 0, COR_PIXEL_LILAS		; # # #   as cores podem ser diferentes
-    WORD		COR_PIXEL_ROSA, COR_PIXEL_LILAS, COR_PIXEL_ROSA, COR_PIXEL_LILAS, COR_PIXEL_ROSA
-    WORD		0, COR_PIXEL_LILAS, 0, COR_PIXEL_LILAS, 0
+    WORD		0, 0, PIXEL_AMARELO2, 0, 0
+	WORD		PIXEL_VERMELHO, 0, PIXEL_AMARELO, 0, PIXEL_AZUL		; # # #   as cores podem ser diferentes
+    WORD		PIXEL_VERMELHO, PIXEL_LARANJA, PIXEL_AMARELO, PIXEL_VERDE, PIXEL_AZUL
+    WORD		0, PIXEL_LARANJA2, 0, PIXEL_VERDE, 0
 
 POSIÇAO_NAVE:
 	WORD COLUNA_INICIAL_NAVE
