@@ -1,5 +1,5 @@
 ; *********************************************************************************
-; * Modulo:    grupo.asm
+; * Ficheiro:  grupo.asm
 ; * Descrição: Ficheiro de código Assembly para o PEPE-16 relativo
 ; * 		   à versão intermédia do projeto de IAC do grupo xx.
 ; *
