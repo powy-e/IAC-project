@@ -1,5 +1,5 @@
 ; *********************************************************************************
-; * Ficheiro:  grupo.asm
+; * Ficheiro:  grupo_102415_102430_102463.asm
 ; * Descrição: Ficheiro de código Assembly para o PEPE-16 relativo
 ; * 		   à versão intermédia do projeto de IAC do grupo xx.
 ; *
@@ -8,6 +8,13 @@
 ; *	Miguel Coelho   - 102430 - miguel.pinheiro.coelho@tecnico.ulisboa.pt
 ; *********************************************************************************
 
+
+;  Tecla andar para a esquerda:	0
+;  Tecla andar para a direita:	2
+;  Tecla descer o meteoro:		7
+;  Tecla para diminuir display: C
+;  Tecla para aumentar display: D
+
 ; +------------+
 ; | CONSTANTES |
 ; +------------+
@@ -15,6 +22,7 @@ TEC_LIN					EQU 0C000H		; Endereço das linhas do teclado (periférico POUT-2)
 TEC_COL					EQU 0E000H		; Endereço das colunas do teclado (periférico PIN)
 LINHA_TECLADO			EQU 1			; Primeira linha a testar (0001b)
 MASCARA					EQU 0FH			; Para isolar os 4 bits de menor peso, ao ler as colunas do teclado
+
 TECLA_ESQUERDA			EQU 0H			; Tecla 0
 TECLA_DIREITA			EQU 2H			; Tecla 2
 TECLA_METEORO_BAIXO		EQU 7H			; Tecla 7
