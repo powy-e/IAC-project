@@ -328,11 +328,27 @@ diminui_energia_display:
 	JLT exit_diminui_energia_display   
 	SUB R0, 5 
 	MOV [ENERGIA], R0					; Guarda energia na memória
-	MOV [ENDEREÇO_DISPLAY], R0			; Coloca o valor inicial no display
+	CALL energia_para_decimal			; Converte a energia para decimal
+	MOV [ENDEREÇO_DISPLAY], R8			; Coloca o valor inicial no display
 exit_diminui_energia_display: 
 	POP R0								; Restaura o valor de R0
 	RET
 
+
+; Argumentos: R0 - energia em hexadecimal
+; Retorna:    R8 - energia em decimal
+energia_para_decimal:
+	MOV R8, 0							; Inicializa o valor da energia a 0
+	MOV R1, 1000						; Coloca em R1 (fator) o valor 1000
+	MOV R3, 10
+ciclo_energia_para_decimal:
+	MOD R0, R1   						; Calcula o resto da divisão
+	SHL R8, 4							; Passa ao Próximo digito
+	OR  R8, R0							; Adiciona o resto ao valor da energia
+	DIV R1, R3							; Divide o fator por 10
+	CMP R1, R3							; Se o fator for <10, sai da função
+	JGE ciclo_energia_para_decimal
+	RET
 
 ; **************************************	
 ; *				  Nave    	 		   *
