@@ -20,7 +20,7 @@
 ; +------------+
 TEC_LIN					EQU 0C000H		; Endereço das linhas do teclado (periférico POUT-2)
 TEC_COL					EQU 0E000H		; Endereço das colunas do teclado (periférico PIN)
-LINHA_TECLADO			EQU 8			; Primeira linha a testar (0001b)
+LINHA_TECLADO			EQU 3			; Primeira linha a testar (0001b)
 MASCARA					EQU 0FH			; Para isolar os 4 bits de menor peso, ao ler as colunas do teclado
 
 TECLA_ESQUERDA			EQU 0H			; Tecla 0
@@ -81,19 +81,28 @@ PIXEL_AZUL 				EQU	0F0AFH
 	PLACE       2000H
 
 	STACK 100H							; espaço reservado para a pilha do processo "main" (programa prinicipal)
-SP_inicial_main:						; este é o endereço (1200H) com que o SP deste processo deve ser inicializado
+SP_inicial_main:						; este é o endereço (2200H) com que o SP deste processo deve ser inicializado
 
-	STACK 100H							; espaço reservado para a pilha do processo "teclado"
-SP_inicial_teclado:						; este é o endereço (1400H) com que o SP deste processo deve ser inicializado
+	STACK 100H							; espaço reservado para a pilha do processo "teclado" (linha 1)
+SP_inicial_teclado_1:					; este é o endereço (2400H) com que o SP deste processo deve ser inicializado
+
+	STACK 100H							; espaço reservado para a pilha do processo "teclado" (linha 1)
+SP_inicial_teclado_2:					; este é o endereço (2600H) com que o SP deste processo deve ser inicializado
+
+	STACK 100H							; espaço reservado para a pilha do processo "teclado" (linha 1)
+SP_inicial_teclado_3:					; este é o endereço (2800H) com que o SP deste processo deve ser inicializado
+
+	STACK 100H							; espaço reservado para a pilha do processo "teclado" (linha 1)
+SP_inicial_teclado_4:					; este é o endereço (3000H) com que o SP deste processo deve ser inicializado
 
 	STACK 100H							; espaço reservado para a pilha do processo "nave"
-SP_inicial_nave:						; este é o endereço (1600H) com que o SP deste processo deve ser inicializado
+SP_inicial_nave:						; este é o endereço (3200H) com que o SP deste processo deve ser inicializado
 
 	STACK 100H							; espaço reservado para a pilha do processo "display"
-SP_inicial_display:						; este é o endereço (1800H) com que o SP deste processo deve ser inicializado
+SP_inicial_display:						; este é o endereço (3400H) com que o SP deste processo deve ser inicializado
 
 	STACK 100H							; espaço reservado para a pilha do processo "meteoro"
-SP_inicial_meteoro:						; este é o endereço (2000H) com que o SP deste processo deve ser inicializado
+SP_inicial_meteoro:						; este é o endereço (3600H) com que o SP deste processo deve ser inicializado
 
 ENERGIA:
 	WORD ENERGIA_INICIAL 				; guarda a energia inicial da nave
@@ -105,6 +114,12 @@ TECLA_CARREGADA:
 TECLA_CONTINUA:
 	LOCK -1 							; LOCK usado para o teclado comunicar aos restantes processos que tecla detetou,
 										; enquanto a tecla estiver carregada
+
+SP_TECLADO:
+	WORD SP_inicial_teclado_1
+	WORD SP_inicial_teclado_2
+	WORD SP_inicial_teclado_3
+	WORD SP_inicial_teclado_4
 
 DEF_NAVE:								; tabela que define a nave 
 	WORD		ALTURA_NAVE, LARGURA_NAVE
@@ -150,6 +165,10 @@ loop_teclados:
 	SHR R11, 1
 	CMP R11, 0
 	JNZ loop_teclados
+
+ciclo:
+	YIELD
+	JMP ciclo
 
 
 ; *
@@ -234,13 +253,26 @@ baixa_meteoro:
 ; * TECLADO - Faz uma leitura às teclas de uma linha do teclado e retorna o valor da tecla lida
 ; * Argumentos:	R11 - linha a testar (em formato 1, 2, 4 ou 8)
 ; *
-PROCESS SP_inicial_teclado
+PROCESS SP_inicial_teclado_1
 
 teclado:
 	MOV  R2, TEC_LIN   					; Endereço do periférico das linhas
 	MOV  R3, TEC_COL   					; Endereço do periférico das colunas
 	MOV  R5, MASCARA   					; Para isolar os 4 bits de menor peso, ao ler as colunas do teclado
-	MOV  R1, R11						; Número da linha a testar
+	MOV  R1, R11						; Número da linha a testar (R11 vem em formato (0, 1, 2, 3))
+	SHL  R1, 1
+	MOV  R10, SP_TECLADO
+	MOV  SP, [R10 + R1]
+
+	MOV  R6, 1 
+loop_fix_linha:
+	CMP  R11, 0
+	JZ end_fix_linha
+	SHL  R6, 1
+	SUB  R11, 1
+	JMP loop_fix_linha
+end_fix_linha:
+	MOV  R1, R6
 
 espera_tecla:							; Neste ciclo, espera-se até uma tecla ser premida
 
