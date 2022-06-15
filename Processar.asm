@@ -146,11 +146,10 @@ inicio:
 	;CALL misseis
 
 	fim:
-	YIELD
-	JMP fim
+		YIELD
+		JMP fim
 
 
-	MOV R1, [LOCK_PRINCIPAL]			; Espera ao lock principal
 
 
 
@@ -168,7 +167,6 @@ PROCESS SP_displays
 processo_displays:
 	CALL inicia_energia_display			; Inicia a energia e o display
 loop_displays:
-	WAIT
 	MOV R0 , [evento_energia]			; Carrega o valor da variável evento_energia
 	JLT diminuir_displays
 	CALL aumenta_energia_display
