@@ -290,9 +290,12 @@ formata_coluna_ciclo:                   ; Para converter o valor da coluna lida
 
 inicia_energia_display:
 	PUSH R0								; Guarda o valor de R0
+	PUSH R4								; Guarda o valor de R4
 	MOV R0, [ENERGIA]					; Coloca em R0 o valor inicial da energia
-	MOV [ENDEREÇO_DISPLAY], R0			; Coloca o valor inicial no display
-	POP R0					
+	CALL energia_para_decimal			; Converte o valor da energia para decimal
+	MOV [ENDEREÇO_DISPLAY], R4			; Coloca o valor inicial no display
+	POP R0								; Repõe o valor de R0			
+	POP R4								; Repõe o valor de R4
 	RET
 
 ; *
@@ -303,17 +306,20 @@ inicia_energia_display:
 aumenta_energia_display:
 	PUSH R0								; Guarda o valor de R0
 	PUSH R1								; Guarda o valor de R1
+	PUSH R4 							; Guarda o valor de R4
 	MOV R0, [ENERGIA]					; Coloca em R0 o valor inicial da energia
 	MOV R1, ENERGIA_INICIAL			
 	SUB R1,R0
-	CMP R1, VALOR_ENERGIA_AUMENTO		;Se a energia for maior que 5, não altera
-	JLT exit_aumenta_energia_display  
+	CMP R1, VALOR_ENERGIA_AUMENTO		; Se a energia for maior que 5, não altera
+	JLT exit_aumenta_energia_display
 	ADD R0, 5
-	MOV [ENERGIA], R0					;Guarda energia na memória
-	MOV [ENDEREÇO_DISPLAY], R0			;Coloca o valor inicial no display
+	MOV [ENERGIA], R0					; Guarda energia na memória
+	CALL energia_para_decimal			; Converte a energia para decimal
+	MOV [ENDEREÇO_DISPLAY], R4			; Coloca o valor inicial no display
 exit_aumenta_energia_display:
-	POP R1 								; restaura o valor de R1
-	POP R0								; restaura o valor de R0
+	POP R4 								; Restaura o valor de R4
+	POP R1 								; Restaura o valor de R1
+	POP R0								; Restaura o valor de R0
 	RET
 
 ; *
@@ -323,31 +329,48 @@ exit_aumenta_energia_display:
 ; *
 diminui_energia_display:
 	PUSH R0								; Guarda o valor de R0
+	PUSH R4								; Guarda o valor de R4
 	MOV R0, [ENERGIA]					; Coloca em R0 o valor inicial da energia
 	CMP R0, VALOR_ENERGIA_DIMINUI		; Se a energia for maior que 5, não altera
 	JLT exit_diminui_energia_display   
 	SUB R0, 5 
 	MOV [ENERGIA], R0					; Guarda energia na memória
 	CALL energia_para_decimal			; Converte a energia para decimal
-	MOV [ENDEREÇO_DISPLAY], R8			; Coloca o valor inicial no display
+	MOV [ENDEREÇO_DISPLAY], R4			; Coloca o valor inicial no display
 exit_diminui_energia_display: 
+	POP R4								; Restaura o valor de R4
 	POP R0								; Restaura o valor de R0
 	RET
 
 
-; Argumentos: R0 - energia em hexadecimal
-; Retorna:    R8 - energia em decimal
+
+
+
+; * ENERGIA_PARA_DECIMAL - Converte o valor de hexadeximal para decimal
+; * Argumentos: R0 - energia em hexadecimal
+; *
+; * Retorna:    R4 - energia em decimal  
 energia_para_decimal:
-	MOV R8, 0							; Inicializa o valor da energia a 0
+	PUSH R0								; Guarda o valor de R0
+	PUSH R1								; Guarda o valor de R1
+	PUSH R2								; Guarda o valor de R2
+	PUSH R3								; Guarda o valor de R3
+	MOV R4, 0							; Inicializa o valor da energia a 0
+	MOV R2, 10							; Inicializa o valor de R2 a 10
 	MOV R1, 1000						; Coloca em R1 (fator) o valor 1000
-	MOV R3, 10
 ciclo_energia_para_decimal:
 	MOD R0, R1   						; Calcula o resto da divisão
-	SHL R8, 4							; Passa ao Próximo digito
-	OR  R8, R0							; Adiciona o resto ao valor da energia
-	DIV R1, R3							; Divide o fator por 10
-	CMP R1, R3							; Se o fator for <10, sai da função
+	MOV R3, R0							; Copia o valor o resto da divisão para R3
+	DIV R1, R2							; Divide o fator por 10
+	DIV R3, R1							; Divide o resto da divisão pelo fator
+	SHL R4, 4							; Passa ao Próximo digito
+	OR  R4, R3							; Adiciona o resto ao valor da energia
+	CMP R1, R2							; Se o fator for <10, sai da função
 	JGE ciclo_energia_para_decimal
+	POP R3								; Restaura o valor de R3
+	POP R2								; Restaura o valor de R2
+	POP R1								; Restaura o valor de R1
+	POP R0								; Restaura o valor de R0
 	RET
 
 ; **************************************	
