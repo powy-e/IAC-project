@@ -615,3 +615,26 @@ acaba_desenho_meteoro_mau:
 	POP R9
 	RET
    
+
+
+
+;rotina chamada sempre que uma nave inimiga é destruída, um meteoro bom colide com o rover ou qualquer deles se perde no fundo,
+decisoes_novo_meteoro_com_pin:
+	PUSH R3
+	PUSH R0
+	MOV  R3, TEC_COL   					; Endereço do periférico das colunas
+	MOVB R0, [R3]      					; Ler do periférico de entrada (colunas)
+	SHR R0, 5
+	MOV R3, 8
+	MUL R0, R0
+	CMP R0, 16
+	JLE escolha_meteoro_bom
+	;R0 é a primeira coluna do novo meteoro
+escolha_meteoro_mau:
+	;MOV R3, -1 ;(indicador de meteoro mau)
+	;MOV [lock_cria_meteoro]? maybe lock para ser mau idk
+	;CALL função que cria meteoro (mau) tendo R0 como coluna primeira coluna
+escolha_meteoro_bom:
+	;MOV R3, 1	;(indicador de meteoro bom)
+	;MOV [lock_cria_meteoro]?
+	;CALL função que cria meteoro (bom) tendo R0 como coluna primeira coluna
