@@ -88,6 +88,13 @@ SP_inicial:								; este é o endereço (1400H) com que o SP deve ser
 
 	STACK 200H							; espaço reservado para a pilha
 SP_displays:
+	STACK 200H							; espaço reservado para a pilha
+SP_nave:
+	STACK 200H							; espaço reservado para a pilha
+SP_teclado:
+evento_mover_nave:
+	LOCK 0H   							; lock para mover nave
+
 evento_energia:
 	LOCK 0H								; lock para a energia
 
@@ -140,8 +147,8 @@ inicio:
 
 	
 	CALL processo_displays				; Processo de display
-	;CALL nave
-	;CALL teclado
+	CALL processo_nave
+	CALL teclado
 	;CALL meteoros
 	;CALL misseis
 
@@ -150,6 +157,69 @@ inicio:
 		JMP fim
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+;PROCESS SP_nave
+;processo_nave:
+;inicialização:
+;	MOV R2, [COLUNA_INICIAL_NAVE]	; R2 recebe a coluna inicial da nave
+;	MOV R4, 0
+;	CALL desenha_col_offset				; Desenha a coluna de offset
+;loop_nave:
+;	MOV R4, [evento_mover_nave]		; R4 recebe o evento de mover a nave
+;	JLT nave_para_esquerda
+;	CALL mover_nave_direita				; Move a nave para a direita
+;	JMP loop_nave
+;nave_para_esquerda:
+;	CALL mover_nave_esquerda			; Move a nave para a esquerda
+;	JMP loop_nave
+
+
+
+
+
+
+PROCESS SP_nave
+processo_nave:
+inicialização:
+	MOV R2, COLUNA_INICIAL_NAVE	; R2 recebe a coluna inicial da nave
+	MOV R4, 0
+	CALL desenha_col_offset				; Desenha a coluna de offset
+loop_nave:
+	MOV R4, [evento_mover_nave]		; R4 recebe o evento de mover a nave
+	JLT nave_para_esquerda
+nave_para_direita:
+	MOV	R6, [DEF_NAVE+2]				; Obtém a largura da nave (2º elemento da tabela DEF_NAVE)
+	MOV R2, [POSIÇAO_NAVE]   			; Vai buscar a Linha onde a Nave se encontra
+	ADD R6, R2                 			; Obtém a posiçao da última coluna da nave
+	MOV	R5, MAX_COLUNA					; Obtem ultima coluna à direita do ecrãua i
+	CMP	R6, R5							; Verifica se a ultima coluna da nave ja se encontra na Coluna Limite Direito
+	JGT	fim_mover   		; Caso a nave já ocupe a ultima coluna, não se move 
+	JMP mover
+nave_para_esquerda:
+	MOV	R5, MIN_COLUNA          		; Guarda a Coluna do Limite Esquerdo em R4
+	MOV R2, [POSIÇAO_NAVE]      		; Vai buscar a Coluna onde a Nave se encontra
+	CMP	R2, R5                  		; Verifica se a nave se encontra na coluna limite
+	JLE	fim_mover 		; Se sim, não se pode mover   
+mover:
+	CALL inicio_apaga_nave      		; Chama a rotina que apaga a Nave
+    CALL desenha_col_offset   			; Chama a rotina que desenha da Nave
+fim_mover:	
+	JMP loop_nave
 
 
 
@@ -253,6 +323,7 @@ inicio_ciclo_atraso:
 	PUSH R11
 	MOV R11, ATRASO							
 ciclo_atraso:							; Ciclo usado para "fazer tempo" entre movimentos sucessivos de naves e meteoros
+	YIELD
 	SUB	R11, 1								
 	JNZ	ciclo_atraso					; Espera até que, por subtrações sucessivas, R11 fique a 0
 	POP R11
@@ -435,7 +506,7 @@ ciclo_energia_para_decimal:
 mover_nave_esquerda:
     PUSH R4								; Guarda todos os registos utilizados
     PUSH R2
-	MOV	R4, MIN_COLUNA          		; Guarda a Coluna do Limite Esquerdo em R5
+	MOV	R4, MIN_COLUNA          		; Guarda a Coluna do Limite Esquerdo em R4
 	MOV R2, [POSIÇAO_NAVE]      		; Vai buscar a Coluna onde a Nave se encontra
 	CMP	R2, R4                  		; Verifica se a nave se encontra na coluna limite
 	JLE	fim_movimento_esquerda  		; Se sim, não se pode mover    
