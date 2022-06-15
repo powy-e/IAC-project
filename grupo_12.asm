@@ -20,7 +20,7 @@
 ; +------------+
 TEC_LIN					EQU 0C000H		; Endereço das linhas do teclado (periférico POUT-2)
 TEC_COL					EQU 0E000H		; Endereço das colunas do teclado (periférico PIN)
-LINHA_TECLADO			EQU 3			; Primeira linha a testar (0001b)
+NUMERO_LINHAS			EQU 4			; Número de linhas no teclado
 MASCARA					EQU 0FH			; Para isolar os 4 bits de menor peso, ao ler as colunas do teclado
 
 TECLA_ESQUERDA			EQU 0H			; Tecla 0
@@ -108,11 +108,11 @@ ENERGIA:
 	WORD ENERGIA_INICIAL 				; guarda a energia inicial da nave
 
 TECLA_CARREGADA:
-	LOCK -1 							; LOCK usado para o teclado comunicar aos restantes processos que tecla detetou
+	LOCK 0 								; LOCK usado para o teclado comunicar aos restantes processos que tecla detetou
 										; uma vez por cada tecla carregada
 
 TECLA_CONTINUA:
-	LOCK -1 							; LOCK usado para o teclado comunicar aos restantes processos que tecla detetou,
+	LOCK 0								; LOCK usado para o teclado comunicar aos restantes processos que tecla detetou,
 										; enquanto a tecla estiver carregada
 
 SP_TECLADO:
@@ -159,10 +159,10 @@ inicio:
 	CALL meteoro
 	CALL display
 
-	MOV  R11, LINHA_TECLADO				; Inicializa R11 com o valor da primeira linha a ser lida
+	MOV  R11, NUMERO_LINHAS				; Inicializa R11 com o valor da primeira linha a ser lida
 loop_teclados:
+	SUB R11, 1
 	CALL teclado
-	SHR R11, 1
 	CMP R11, 0
 	JNZ loop_teclados
 
@@ -259,6 +259,7 @@ teclado:
 	MOV  R2, TEC_LIN   					; Endereço do periférico das linhas
 	MOV  R3, TEC_COL   					; Endereço do periférico das colunas
 	MOV  R5, MASCARA   					; Para isolar os 4 bits de menor peso, ao ler as colunas do teclado
+
 	MOV  R1, R11						; Número da linha a testar (R11 vem em formato (0, 1, 2, 3))
 	SHL  R1, 1
 	MOV  R10, SP_TECLADO
@@ -291,7 +292,7 @@ espera_tecla:							; Neste ciclo, espera-se até uma tecla ser premida
 
 espera_nao_tecla:						; Neste ciclo, espera-se até NENHUMA tecla estar premida
 
-	WAIT								; Este ciclo é potencialmente bloqueante, pelo que tem de
+	YIELD								; Este ciclo é potencialmente bloqueante, pelo que tem de
 										; ter um ponto de fuga (aqui pode comutar para outro processo)
 
 	CALL formata_tecla					; Converte o valor da linha e o da coluna no valor da tecla lida
