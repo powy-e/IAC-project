@@ -176,7 +176,7 @@ baixar_meteoro:
    JNZ aumenta_display                     ; Passa ao próximo teste
    MOV R9, 0                               ; Move para R9 o som de código 0
    MOV [TOCA_SOM], R9                      ; Toca esse mesmo som
-   CALL mover_meteoro_mau                  
+   ;CALL mover_meteoro_mau                  
    JMP espera_nao_tecla                    ; Após processar o movimento, espera que a tecla deixe de ser premida e depois torna a ler o input do teclado
  
 aumenta_display:
@@ -508,67 +508,270 @@ desenha_pixels_nave:
 ; **************************************	
 
 
-; *
-; * MOVER_METEORO_MAU - Move o meteoro mau 1 linha para baixo, começando por obter a posição 
-; *  da nave e apagando-a linha a linha, num ciclo.
-; *
-mover_meteoro_mau:	
-    PUSH R8
-    PUSH R9								; Guarda todos os registos utilizados
-	PUSH R4						
-	MOV R9, [POSIÇAO_METEORO]			; Cópia da linha onde se encontra o meteoro
-	MOV R8, [DEF_METEORO_MAU]			; Cópia da altura (contador das linhas)
-    MOV R4, 1							; Sentido do movimento (para baixo)
-	CALL apaga_meteoro_mau
-	CALL linha_seguinte
-fim_movimento_meteoro:
-    POP R4
-	POP R9								; Repõe todos os registos utilizados
-    POP R8
-    RET
+;; *
+;; * MOVER_METEORO_MAU - Move o meteoro mau 1 linha para baixo, começando por obter a posição 
+;; *  da nave e apagando-a linha a linha, num ciclo.
+;; *
+;mover_meteoro_mau:	
+;    PUSH R8
+;    PUSH R9								; Guarda todos os registos utilizados
+;	PUSH R4						
+;	MOV R9, [POSIÇAO_METEORO]			; Cópia da linha onde se encontra o meteoro
+;	MOV R8, [DEF_METEORO_MAU]			; Cópia da altura (contador das linhas)
+;    MOV R4, 1							; Sentido do movimento (para baixo)
+;	CALL apaga_meteoro_mau
+;	CALL linha_seguinte
+;fim_movimento_meteoro:
+;    POP R4
+;	POP R9								; Repõe todos os registos utilizados
+;    POP R8
+;    RET
+;
+;
+;; *
+;; * APAGA_METEORO_MAU - Apaga o meteoro mau, começando por obter a sua posição 
+;; *  da nave e apagando-o linha a linha, num ciclo.
+;; * Argumentos: R8 - Altura do meteoro (contador das linhas)
+;; *				R9 - 1ª Linha onde se encontra o meteoro
+;; *
+;apaga_meteoro_mau:
+;	PUSH R9
+;	PUSH R8
+;	PUSH R6								; Guarda todos os registos utilizados
+;	PUSH R5
+;	PUSH R3
+;apaga_linha_meteoro_mau:
+;	MOV R6, COLUNA_METEORO				; Obtém a coluna onde começa o meteoro
+;	MOV	R5, [DEF_METEORO_MAU + 2]		; Obtém a largura do meteoro (contador de colunas)
+;	MOV	R3, 0							; Para apagar, a cor do pixel é sempre 0
+;apaga_pixels_meteoro:       			
+;	MOV  [DEFINE_LINHA], R9				; Seleciona a linha 
+;	MOV  [DEFINE_COLUNA], R6			; Seleciona a coluna
+;	MOV  [DEFINE_PIXEL], R3				; Altera (para 0) a cor do pixel na linha e coluna selecionadas
+;    ADD  R6, 1             				; Passa à próxima coluna
+;    SUB  R5, 1							; Reduz o contador de colunas por apagar
+;    JNZ  apaga_pixels_meteoro			; Continua até percorrer toda a largura do objeto
+;	ADD R9, 1							; Avança para a linha seguinte
+;    SUB R8, 1							; Reduz contador das linhas por apagar
+;	JNZ apaga_linha_meteoro_mau			; Vai apagar a próxima linha do meteoro
+;	POP R3
+;	POP R5								
+;	POP R6								; Repõe todos os registos
+;	POP R8
+;	POP R9
+;    RET
+;
+;; *
+;; * APAGA_METEORO_MAU - Desenha o meteoro mau na posição desejada (1 linha abaixo), começando por 
+;; *  obter a sua posição e desenhando-o, linha a linha, num ciclo.
+;; * Argumentos: R4 - offset (descreve o sentido do movimento ou a não existência do mesmo)
+;; *				R8 - Altura do meteoro (contador das linhas)
+;; *				R9 - 1ª Linha onde se encontra o meteoro
+;; *
+;linha_seguinte:
+;	PUSH R9
+;	PUSH R8
+;	PUSH R6
+;	PUSH R5								; Guarda todos os registos utilizados
+;	PUSH R4
+;	PUSH R3 
+;	PUSH R2
+;	PUSH R1
+;	MOV R2, [POSIÇAO_METEORO]			; Vai buscar a linha do meteoro à memória
+;	ADD R2, R4							; Obtém a linha seguinte onde desenhar o meteoro	
+;	MOV [POSIÇAO_METEORO], R2			; Atualiza a linha inicial do meteoro
+;inicio_desenha_meteoro_mau:
+;	MOV R9, [POSIÇAO_METEORO]			; Volta a obter da memória a linha do meteoro
+;    MOV R8, [DEF_METEORO_MAU]   		; Obtém a altura do meteoro mau
+;    MOV	R4, DEF_METEORO_MAU				; Obtém o endereço da tabela que define o meteoro mau
+;    ADD R4, 4           				; Obtém o endereço da cor do 1º pixel 
+;desenha_meteoro_mau:       						
+;    MOV R1, MAX_LINHA					; Obtém o endereço da última linha do ecrã
+;	CMP R9, R1							; Verifica se a próxima linha do meteoro está fora do ecrã 
+;	JGT acaba_desenho_meteoro_mau		; Nesse caso, interrompe o desenho, pois o resto do meteoro já ultrapassou o ecrã 
+;	MOV R6, COLUNA_METEORO				; Cópia da primeira coluna do meteoro
+;	MOV	R5, [DEF_METEORO_MAU+2]			; Obtém a largura do meteoro
+;desenha_pixels_meteoro:       		
+;	MOV	R3, [R4]						; Obtém a cor do próximo pixel 
+;	MOV [DEFINE_LINHA], R9				; Seleciona a linha
+;	MOV [DEFINE_COLUNA], R6				; Seleciona a coluna
+;	MOV [DEFINE_PIXEL], R3				; Altera a cor do pixel na linha e coluna selecionadas
+;	ADD	R4, 2							; Obtém endereço da cor do próximo pixel 
+;    ADD R6, 1               			; Passa à próxima coluna
+;    SUB R5, 1							; Reduz o contador de colunas por desenhar
+;    JNZ desenha_pixels_meteoro 			; Continua até percorrer toda a largura do objeto
+;	ADD R9, 1               			; Avança para a linha seguinte
+;	SUB R8, 1							; Reduz o contador das linhas por desenhar
+;    JNZ desenha_meteoro_mau				; Vai desenhar a próxima linha do meteoro
+;	CALL inicio_ciclo_atraso			; Atrasa a execução do próximo comando, tornando o movimento mais fluido	
+;acaba_desenho_meteoro_mau:
+;	POP R1
+;	POP R2
+;	POP R3
+;	POP R4
+;	POP R5								; Repõe todos os registos
+;	POP R6
+;	POP R8
+;	POP R9
+;	RET
+;
+   
 
 
-; *
-; * APAGA_METEORO_MAU - Apaga o meteoro mau, começando por obter a sua posição 
-; *  da nave e apagando-o linha a linha, num ciclo.
-; * Argumentos: R8 - Altura do meteoro (contador das linhas)
-; *				R9 - 1ª Linha onde se encontra o meteoro
-; *
-apaga_meteoro_mau:
-	PUSH R9
-	PUSH R8
-	PUSH R6								; Guarda todos os registos utilizados
-	PUSH R5
+
+
+PIXEL_CINZA EQU 0FF00H
+TIPO_METEORO_MAU EQU 2 
+TIPO_METEORO_BOM EQU 4
+
+DEF_METEORO_1X1:
+	WORD		1, 1
+    WORD		PIXEL_CINZA
+
+
+DEF_METEORO_2X2:
+	WORD		1, 1
+    WORD		PIXEL_CINZA, PIXEL_CINZA
+    WORD		PIXEL_CINZA, PIXEL_CINZA
+
+
+DEF_METEORO_3X3_BOM:
+	WORD		3, 3
+    WORD		0, 			PIXEL_AZUL, 0
+    WORD		PIXEL_AZUL, PIXEL_AZUL, PIXEL_AZUL
+    WORD		0, 			PIXEL_AZUL, 0
+	
+DEF_METEORO_3X3_MAU:
+	WORD		3, 3
+    WORD		COR_PIXEL_METEORO, 	0, 					COR_PIXEL_METEORO
+    WORD		0, 					COR_PIXEL_METEORO,  0
+    WORD		COR_PIXEL_METEORO, 	0, 					COR_PIXEL_METEORO
+
+
+DEF_METEORO_4X4_BOM:
+	WORD		4, 4
+    WORD		0, 			PIXEL_AZUL, PIXEL_AZUL, 0
+    WORD		PIXEL_AZUL, PIXEL_AZUL, PIXEL_AZUL, PIXEL_AZUL
+    WORD		PIXEL_AZUL, PIXEL_AZUL, PIXEL_AZUL, PIXEL_AZUL
+    WORD		0, 			PIXEL_AZUL, PIXEL_AZUL, 0
+	
+DEF_METEORO_4X4_MAU:
+	WORD		4, 4
+    WORD		COR_PIXEL_METEORO, 	0, 					0, 					COR_PIXEL_METEORO
+    WORD		COR_PIXEL_METEORO, 	0, 					0, 					COR_PIXEL_METEORO
+    WORD		0, 					COR_PIXEL_METEORO,  COR_PIXEL_METEORO, 	0
+	WORD		COR_PIXEL_METEORO, 	0, 					0, 					COR_PIXEL_METEORO
+
+
+DEF_METEORO_5X5_BOM:						; tabela que define o meteoro bom 
+	WORD		5, 5
+    WORD		0, 				PIXEL_AZUL, 	PIXEL_AZUL,		PIXEL_AZUL, 		0
+	WORD		PIXEL_AZUL, 	PIXEL_AZUL, 	PIXEL_AZUL, 	PIXEL_AZUL, 		PIXEL_AZUL
+    WORD		0, 				0, 				PIXEL_AZUL, 	0, 	 				0
+   	WORD		PIXEL_AZUL, 	PIXEL_AZUL, 	PIXEL_AZUL, 	PIXEL_AZUL, 		PIXEL_AZUL
+    WORD		0, 				PIXEL_AZUL, 	PIXEL_AZUL, 	PIXEL_AZUL,   		0		
+
+
+DEF_METEORO_5X5_MAU:						; tabela que define o meteoro mau 
+	WORD		5, 5
+    WORD		COR_PIXEL_METEORO, 	0, 					0, 					0, 					COR_PIXEL_METEORO
+	WORD		COR_PIXEL_METEORO, 	0, 					COR_PIXEL_METEORO, 	0, 					COR_PIXEL_METEORO
+    WORD		0, 					COR_PIXEL_METEORO, 	COR_PIXEL_METEORO, 	COR_PIXEL_METEORO, 	0
+   	WORD		COR_PIXEL_METEORO, 	0, 					COR_PIXEL_METEORO, 	0, 					COR_PIXEL_METEORO
+    WORD		COR_PIXEL_METEORO, 	0, 					0, 					0, 					COR_PIXEL_METEORO
+;colisao meteoro mau rover
+;criar meteoros
+COLUNA EQU 0H
+LINHA EQU 0H
+
+TABELA_METEOROS:
+	WORD TIPO_METEORO_MAU, DEF_METEORO_1X1, COLUNA, LINHA 
+	WORD TIPO_METEORO_BOM, DEF_METEORO_1X1, COLUNA, LINHA	;0 1 2 ; 3 4 5 ;6 7 8 ;9 10 11
+	WORD TIPO_METEORO_MAU, DEF_METEORO_1X1, COLUNA, LINHA
+	WORD TIPO_METEORO_MAU, DEF_METEORO_1X1, COLUNA, LINHA
+
+TABELA_LINHAS_EVOLUÇÃO_METEOROS:
+	WORD 3,  DEF_METEORO_2X2, 	  DEF_METEORO_2X2
+	WORD 6,  DEF_METEORO_3X3_MAU, DEF_METEORO_3X3_BOM
+	WORD 9,  DEF_METEORO_4X4_MAU, DEF_METEORO_4X4_BOM
+	WORD 12, DEF_METEORO_5X5_MAU, DEF_METEORO_5X5_BOM
+
+
+
+
+;rotina chamada sempre que uma nave inimiga é destruída, um meteoro bom colide com o rover ou qualquer deles se perde no fundo,
+; argumento-R11-valor a somar para aceder ao endereço da tabela que define o tipo de meteoro a criar
+decisoes_novo_meteoro_com_pin:
 	PUSH R3
-apaga_linha_meteoro_mau:
-	MOV R6, COLUNA_METEORO				; Obtém a coluna onde começa o meteoro
-	MOV	R5, [DEF_METEORO_MAU + 2]		; Obtém a largura do meteoro (contador de colunas)
-	MOV	R3, 0							; Para apagar, a cor do pixel é sempre 0
-apaga_pixels_meteoro:       			
-	MOV  [DEFINE_LINHA], R9				; Seleciona a linha 
-	MOV  [DEFINE_COLUNA], R6			; Seleciona a coluna
-	MOV  [DEFINE_PIXEL], R3				; Altera (para 0) a cor do pixel na linha e coluna selecionadas
-    ADD  R6, 1             				; Passa à próxima coluna
-    SUB  R5, 1							; Reduz o contador de colunas por apagar
-    JNZ  apaga_pixels_meteoro			; Continua até percorrer toda a largura do objeto
-	ADD R9, 1							; Avança para a linha seguinte
-    SUB R8, 1							; Reduz contador das linhas por apagar
-	JNZ apaga_linha_meteoro_mau			; Vai apagar a próxima linha do meteoro
+	PUSH R0
+	PUSH R4
+	PUSH R11
+	PUSH R10
+	MOV  R3, TEC_COL   					; Endereço do periférico das colunas
+	MOVB R0, [R3]      					; Ler do periférico de entrada (colunas)
+	SHR R0, 5
+	MOV R3, 8
+	MUL R0, R3
+	MOV R3, R11
+	ADD R3, 2
+	MOV R4, DEF_METEORO_1X1
+	MOV R10, TABELA_METEOROS
+	ADD R3, R10
+	MOV [R3], R4	; guarda o endereço para a tabela do meteoro 1x1 no novo meteoro
+	ADD R3, 2							; obtém valor a somar ao endereço da tabela de meteoros para obter a coluna do meteoro
+	MOV [R3], R0		; escreve na memória a coluna do meteoro novo
+	ADD R3, 2
+	MOV R4, 0
+	MOV [R3], R4			; novo meteoro surgirá na linha 0
+	MOV R4, 16
+	CMP R0, R4
+	JLE escolha_meteoro_bom				; definição semi-aleatória do tipo do meteoro
+escolha_meteoro_mau:
+	MOV R4, TIPO_METEORO_MAU
+	ADD R11, R10
+	MOV [R11], R4
+	JMP fim_decisões_novo_meteoro
+	;MOV R3, -1 ;(indicador de meteoro mau)
+	;MOV [lock_cria_meteoro]? maybe lock para ser mau idk
+	;CALL função que cria meteoro (mau) tendo R0 como coluna primeira coluna
+escolha_meteoro_bom:
+	MOV R4, TIPO_METEORO_BOM
+	ADD R11, R10
+	MOV [R11], R4
+	;MOV R3, 1	;(indicador de meteoro bom)
+	;MOV [lock_cria_meteoro]?
+	;CALL função que cria meteoro (bom) tendo R0 como coluna primeira coluna
+fim_decisões_novo_meteoro:
+	POP R10
+	POP R11
+	POP R4
+	POP R0
 	POP R3
-	POP R5								
-	POP R6								; Repõe todos os registos
-	POP R8
-	POP R9
-    RET
 
-; *
-; * APAGA_METEORO_MAU - Desenha o meteoro mau na posição desejada (1 linha abaixo), começando por 
-; *  obter a sua posição e desenhando-o, linha a linha, num ciclo.
-; * Argumentos: R4 - offset (descreve o sentido do movimento ou a não existência do mesmo)
-; *				R8 - Altura do meteoro (contador das linhas)
-; *				R9 - 1ª Linha onde se encontra o meteoro
-; *
+
+
+;argumento-R11-meteoro a desenhar(0,1,2,3) e R4-quanto somar para mudar de linha (0 ou 1)
+
+
+processo_meteoro:	;chamar com R10 = 0 pela primeira vez
+inicio_processo_meteoro:
+	MOV R10, 0
+ciclo_processo_meteoro:
+	MOV R11, R10
+	MOV R4, 8
+	MUL R11, R4						; valor a somar para obter linha da tabela correspondente ao meteoro
+	CALL linha_seguinte
+	MOV R0, [evento_mover_meteoro]		; quando o lock é ativado pelo relógio, o meteoro move-se
+	CALL apaga_meteoro
+	ADD R10, 1
+	CMP R10, 4
+	JGE inicio_processo_meteoro
+	JMP ciclo_processo_meteoro
+
+
+
 linha_seguinte:
+	PUSH R11
 	PUSH R9
 	PUSH R8
 	PUSH R6
@@ -577,20 +780,49 @@ linha_seguinte:
 	PUSH R3 
 	PUSH R2
 	PUSH R1
-	MOV R2, [POSIÇAO_METEORO]			; Vai buscar a linha do meteoro à memória
-	ADD R2, R4							; Obtém a linha seguinte onde desenhar o meteoro	
-	MOV [POSIÇAO_METEORO], R2			; Atualiza a linha inicial do meteoro
-inicio_desenha_meteoro_mau:
-	MOV R9, [POSIÇAO_METEORO]			; Volta a obter da memória a linha do meteoro
-    MOV R8, [DEF_METEORO_MAU]   		; Obtém a altura do meteoro mau
-    MOV	R4, DEF_METEORO_MAU				; Obtém o endereço da tabela que define o meteoro mau
+	PUSH R7
+	ADD R11, 2							; valor a somar para obter tabela que define o meteoro a desenhar
+	MOV R2, R11							
+	ADD R2, 4							; valor a somar para obter linha do ecrã do meteoro
+	ADD R2, TABELA_METEOROS
+	MOV R9, [R2]				; Vai buscar a linha do meteoro à memória
+	ADD R9, R4							; Obtém a linha seguinte onde desenhar o meteoro	(0 se for a primeira vez a desenhar)
+	MOV [R2], R9				; Atualiza a linha inicial do meteoro
+evolução_meteoro:
+	CMP R9, 12							; se estiver numa linhaa supeiror a 12 não há evolução
+	JGT inicio_desenha_meteoro
+	MOV R4, R9
+	MOV R2, 3
+	MOD R4, R2						; se a linha onde está não for múltipla de 3, não há evolução
+	JNZ inicio_desenha_meteoro
+	MOV R9, R4
+	DIV R4, R2
+	SUB R4, 1							
+	MOV R2, 6
+	MUL R4, R2							; obtém valor a somar ao endereço da tabela de evolução para obter novo desenho
+	MOV R2, TABELA_METEOROS
+	ADD R2, R11
+	MOV R7, [R2-2]
+	ADD R4, R7						; soma 0 se for meteoro mau e 2 se for bom
+	MOV R7, TABELA_LINHAS_EVOLUÇÃO_METEOROS
+	MOV R4, [R7+R4]	; obtém novo desenho para o meteoro
+	MOV [R2], R4					; atualiza o desenho do meteoro
+
+inicio_desenha_meteoro:
+	;MOV R9, [POSIÇAO_METEORO]			; Volta a obter da memória a linha do meteoro MAYBE UNECESSARY?????????----------------------------------
+    MOV R7, TABELA_METEOROS
+	MOV R4, [R7+R11]		; Obtém o endereço da tabela que define o meteoro
+	MOV R8, [R4]   						; Obtém a altura do meteoro
     ADD R4, 4           				; Obtém o endereço da cor do 1º pixel 
-desenha_meteoro_mau:       						
+desenha_meteoro:       						
     MOV R1, MAX_LINHA					; Obtém o endereço da última linha do ecrã
 	CMP R9, R1							; Verifica se a próxima linha do meteoro está fora do ecrã 
-	JGT acaba_desenho_meteoro_mau		; Nesse caso, interrompe o desenho, pois o resto do meteoro já ultrapassou o ecrã 
-	MOV R6, COLUNA_METEORO				; Cópia da primeira coluna do meteoro
-	MOV	R5, [DEF_METEORO_MAU+2]			; Obtém a largura do meteoro
+	JGT meteoro_fora_do_ecrã			; Nesse caso, interrompe o desenho, pois o resto do meteoro já ultrapassou o ecrã 
+	MOV R6, R11
+	ADD R6, 2							; valor a somar ao endereço da tabela para obter coluna do meteoro
+	MOV R6, [R7+R6]		; Cópia da primeira coluna do meteoro
+	MOV R5, [R7+R11]		; Obtém o endereço da tabela que define o meteoro
+	MOV	R5, [R5+2]						; Obtém a largura do meteoro
 desenha_pixels_meteoro:       		
 	MOV	R3, [R4]						; Obtém a cor do próximo pixel 
 	MOV [DEFINE_LINHA], R9				; Seleciona a linha
@@ -602,9 +834,10 @@ desenha_pixels_meteoro:
     JNZ desenha_pixels_meteoro 			; Continua até percorrer toda a largura do objeto
 	ADD R9, 1               			; Avança para a linha seguinte
 	SUB R8, 1							; Reduz o contador das linhas por desenhar
-    JNZ desenha_meteoro_mau				; Vai desenhar a próxima linha do meteoro
+    JNZ desenha_meteoro				; Vai desenhar a próxima linha do meteoro
 	CALL inicio_ciclo_atraso			; Atrasa a execução do próximo comando, tornando o movimento mais fluido	
-acaba_desenho_meteoro_mau:
+acaba_desenho_meteoro:
+	POP R7
 	POP R1
 	POP R2
 	POP R3
@@ -613,28 +846,11 @@ acaba_desenho_meteoro_mau:
 	POP R6
 	POP R8
 	POP R9
+	POP R11
 	RET
-   
 
-
-
-;rotina chamada sempre que uma nave inimiga é destruída, um meteoro bom colide com o rover ou qualquer deles se perde no fundo,
-decisoes_novo_meteoro_com_pin:
-	PUSH R3
-	PUSH R0
-	MOV  R3, TEC_COL   					; Endereço do periférico das colunas
-	MOVB R0, [R3]      					; Ler do periférico de entrada (colunas)
-	SHR R0, 5
-	MOV R3, 8
-	MUL R0, R0
-	CMP R0, 16
-	JLE escolha_meteoro_bom
-	;R0 é a primeira coluna do novo meteoro
-escolha_meteoro_mau:
-	;MOV R3, -1 ;(indicador de meteoro mau)
-	;MOV [lock_cria_meteoro]? maybe lock para ser mau idk
-	;CALL função que cria meteoro (mau) tendo R0 como coluna primeira coluna
-escolha_meteoro_bom:
-	;MOV R3, 1	;(indicador de meteoro bom)
-	;MOV [lock_cria_meteoro]?
-	;CALL função que cria meteoro (bom) tendo R0 como coluna primeira coluna
+meteoro_fora_do_ecrã:
+	SUB R11, 2							; valor a somar para obter tipo de meteoro
+	CALL decisoes_novo_meteoro_com_pin
+	CALL linha_seguinte
+	JMP acaba_desenho_meteoro
