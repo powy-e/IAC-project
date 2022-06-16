@@ -161,27 +161,44 @@ inicio:
 	MOV  R11, NUMERO_LINHAS				; Inicializa R11 com o valor da primeira linha a ser lida
 loop_teclados:
 	CMP R11, 0
-	JZ nave
+	JZ espera_movimento
 	SUB R11, 1
 	CALL teclado
 	JMP loop_teclados
 
-nave:
-	MOV R2, [POSIÇAO_NAVE]				; Argumento posição da Nave (coluna)
-	MOV R4, 0							; Argumento offset da Nave
-	CALL desenha_col_offset				; Desenha a nave na sua posição inicial
 espera_movimento:
-	MOV R3, [TECLA_CONTINUA]
-mover_esquerda:
+	MOV R3, [TECLA_CARREGADA]
+mover_p_esquerda:
 	CMP R3, TECLA_ESQUERDA
-	JNZ mover_direita					; Passa ao próximo teste
-	CALL mover_nave_esquerda
+	JNZ mover_p_direita
+	MOV R7 ,1
+	MOV [TECLA_CONTINUA], R7
 	JMP espera_movimento
-mover_direita:
-	CMP R3, TECLA_DIREITA
-	JNZ espera_movimento
-	CALL mover_direita
+mover_p_direita:
+	MOV R7, TECLA_DIREITA
+	CMP R3, R7
+	JNZ display_p_baixo
+	MOV R7 ,1
+	MOV [TECLA_CONTINUA], R7
 	JMP espera_movimento
+display_p_baixo:
+	MOV R7, TECLA_AUMENTA_DISPLAY
+	CMP R3, R7
+	JNZ display_p_cima
+	MOV [TECLA_CONTINUA], R7
+	JMP espera_movimento
+display_p_cima:
+	MOV R7, TECLA_AUMENTA_DISPLAY
+	CMP R3, R7
+	JNZ nao_tecla
+	MOV R7 ,0
+	MOV [TECLA_CONTINUA], R7
+	JMP espera_movimento
+nao_tecla:
+	MOV R7, 1
+	MOV [TECLA_CONTINUA], R7
+	JMP espera_movimento
+
 
 
 ; *
@@ -286,6 +303,9 @@ espera_tecla:							; Neste ciclo, espera-se até uma tecla ser premida
 										; (retorna um valor entre 0H e FH, consoante o valor da tecla lida)
 	MOV [TECLA_CARREGADA], R0			; Informa quem estiver bloqueado neste LOCK que uma tecla foi carregada
 
+	MOV R7, [TECLA_CONTINUA]			; Informa quem estiver bloqueado neste LOCK que uma tecla está a ser carregada
+	CMP R7, 0							; Se a tecla lida não for a tecla de continuar, então é a tecla de sair
+	JZ espera_tecla
 espera_nao_tecla:						; Neste ciclo, espera-se até NENHUMA tecla estar premida
 
 	YIELD								; Este ciclo é potencialmente bloqueante, pelo que tem de
@@ -293,7 +313,6 @@ espera_nao_tecla:						; Neste ciclo, espera-se até NENHUMA tecla estar premida
 
 	CALL formata_tecla					; Converte o valor da linha e o da coluna no valor da tecla lida
 										; (retorna um valor entre 0H e FH, consoante o valor da tecla lida)
-	MOV [TECLA_CONTINUA], R0			; Informa quem estiver bloqueado neste LOCK que uma tecla está a ser carregada
 
 	MOVB [R2], R1 						; Escrever no periférico de saída (linhas)
 	MOVB R0, [R3]      					; Ler do periférico de entrada (colunas)
