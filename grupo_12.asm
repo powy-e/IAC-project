@@ -149,6 +149,26 @@ PLACE   0                     			; o código tem de começar em 0000H
 inicio:
 	MOV SP, SP_inicial_main				; Inicializa o SP (stack pointer) do programa principal
 
+load_start:
+	MOV  [APAGA_AVISO], R1				; Apaga o aviso de nenhum cenário selecionado 
+	MOV  [APAGA_ECRÃ], R1	    		; Apaga todos os pixels já desenhados 
+	MOV	 R1, 1			        		; Cenário de fundo número 0
+    MOV  [SELECIONA_CENARIO_FUNDO], R1	; Seleciona o cenário de fundo
+
+	MOV  R11, NUMERO_LINHAS				; Inicializa R11 com o valor da primeira linha a ser lida
+loop_teclados:
+	CMP R11, 0
+	JZ start_game
+	SUB R11, 1
+	CALL teclado
+	JMP loop_teclados
+start_game:
+	MOV R3, [TECLA_CARREGADA]
+	MOV R4, TECLA_DIMINUI_DISPLAY
+	CMP R3, R4
+	JNZ start_game
+
+load_game:
 	MOV  [APAGA_AVISO], R1	    		; Apaga o aviso de nenhum cenário selecionado 
     MOV  [APAGA_ECRÃ], R1	    		; Apaga todos os pixels já desenhados 
 	MOV	 R1, 0			        		; Cenário de fundo número 0
@@ -157,14 +177,6 @@ inicio:
 	; Cria processos. O CALL não invoca a rotina, apenas cria um processo executável
 	CALL meteoro
 	CALL display
-
-	MOV  R11, NUMERO_LINHAS				; Inicializa R11 com o valor da primeira linha a ser lida
-loop_teclados:
-	CMP R11, 0
-	JZ nave
-	SUB R11, 1
-	CALL teclado
-	JMP loop_teclados
 
 nave:
 	MOV R2, [POSIÇAO_NAVE]				; Argumento posição da Nave (coluna)
@@ -180,7 +192,7 @@ mover_esquerda:
 mover_direita:
 	CMP R3, TECLA_DIREITA
 	JNZ espera_movimento
-	CALL mover_direita
+	CALL mover_nave_direita
 	JMP espera_movimento
 
 
