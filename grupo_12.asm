@@ -155,20 +155,33 @@ inicio:
     MOV  [SELECIONA_CENARIO_FUNDO], R1	; Seleciona o cenário de fundo
 
 	; Cria processos. O CALL não invoca a rotina, apenas cria um processo executável
-	CALL nave
 	CALL meteoro
 	CALL display
 
 	MOV  R11, NUMERO_LINHAS				; Inicializa R11 com o valor da primeira linha a ser lida
 loop_teclados:
+	CMP R11, 0
+	JZ nave
 	SUB R11, 1
 	CALL teclado
-	CMP R11, 0
-	JNZ loop_teclados
+	JMP loop_teclados
 
-ciclo:
-	YIELD
-	JMP ciclo
+nave:
+	MOV R2, [POSIÇAO_NAVE]				; Argumento posição da Nave (coluna)
+	MOV R4, 0							; Argumento offset da Nave
+	CALL desenha_col_offset				; Desenha a nave na sua posição inicial
+espera_movimento:
+	MOV R3, [TECLA_CONTINUA]
+mover_esquerda:
+	CMP R3, TECLA_ESQUERDA
+	JNZ mover_direita					; Passa ao próximo teste
+	CALL mover_nave_esquerda
+	JMP espera_movimento
+mover_direita:
+	CMP R3, TECLA_DIREITA
+	JNZ espera_movimento
+	CALL mover_direita
+	JMP espera_movimento
 
 
 ; *
@@ -189,23 +202,6 @@ ciclo_atraso:							; Ciclo usado para "fazer tempo" entre movimentos sucessivos
 ; *
 ; * NAVE - Processo que trata do movimento da nave, controlado pelo input do teclado
 ; *
-PROCESS SP_inicial_nave
-nave:
-	MOV R2, [POSIÇAO_NAVE]				; Argumento posição da Nave (coluna)
-	MOV R4, 0							; Argumento offset da Nave
-	CALL desenha_col_offset				; Desenha a nave na sua posição inicial
-espera_movimento:
-	MOV R3, [TECLA_CONTINUA]
-mover_esquerda:
-	CMP R3, TECLA_ESQUERDA
-	JNZ mover_direita					; Passa ao próximo teste
-	CALL mover_nave_esquerda
-	JMP espera_movimento
-mover_direita:
-	CMP R3, TECLA_DIREITA
-	JNZ espera_movimento
-	CALL mover_direita
-	JMP espera_movimento
 
 
 ; * [Processo]
