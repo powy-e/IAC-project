@@ -20,7 +20,7 @@
 ; +------------+
 TEC_LIN					EQU 0C000H		; Endereço das linhas do teclado (periférico POUT-2)
 TEC_COL					EQU 0E000H		; Endereço das colunas do teclado (periférico PIN)
-LINHA_TECLADO			EQU 1			; Primeira linha a testar (0001b)
+NUMERO_LINHAS			EQU 4			; Número de linhas do teclado
 MASCARA					EQU 0FH			; Para isolar os 4 bits de menor peso, ao ler as colunas do teclado
 
 TECLA_ESQUERDA			EQU 0H			; Tecla 0
@@ -60,7 +60,7 @@ LARGURA_METEORO_MAU 	EQU 5 			; Largura do meteoro mau
 
 MAX_LINHA       		EQU 31
 MIN_COLUNA				EQU  0			; Número da última coluna à esquerda no ecrã
-MAX_COLUNA				EQU  63     	; Número da última coluna à direita no ecrã
+MAX_COLUNA				EQU  64     	; Número da última coluna à direita no ecrã
 
 
 COR_PIXEL_METEORO       EQU 0FF05H   	
@@ -90,8 +90,26 @@ SP_inicial:								; este é o endereço (1400H) com que o SP deve ser
 SP_displays:
 	STACK 200H							; espaço reservado para a pilha
 SP_nave:
-	STACK 200H							; espaço reservado para a pilha
-SP_teclado:
+	STACK 100H							; espaço reservado para a pilha do processo "teclado" (linha 1)
+SP_inicial_teclado_1:					; este é o endereço (2400H) com que o SP deste processo deve ser inicializado
+
+	STACK 100H							; espaço reservado para a pilha do processo "teclado" (linha 1)
+SP_inicial_teclado_2:					; este é o endereço (2600H) com que o SP deste processo deve ser inicializado
+
+	STACK 100H							; espaço reservado para a pilha do processo "teclado" (linha 1)
+SP_inicial_teclado_3:					; este é o endereço (2800H) com que o SP deste processo deve ser inicializado
+
+	STACK 100H							; espaço reservado para a pilha do processo "teclado" (linha 1)
+SP_inicial_teclado_4:					; este é o endereço (3000H) com que o SP deste processo deve ser inicializado
+
+
+SP_TECLADO:
+	WORD SP_inicial_teclado_1
+	WORD SP_inicial_teclado_2
+	WORD SP_inicial_teclado_3
+	WORD SP_inicial_teclado_4
+
+
 evento_mover_nave:
 	LOCK 0H   							; lock para mover nave
 
@@ -103,6 +121,14 @@ tab_int:
 
 LOCK_PRINCIPAL:
 	LOCK 0H								; lock para o programa principal 
+
+TECLA_CARREGADA:
+	LOCK 0 								; LOCK usado para o teclado comunicar aos restantes processos que tecla detetou
+										; uma vez por cada tecla carregada
+
+TECLA_CONTINUA:
+	LOCK 0								; LOCK usado para o teclado comunicar aos restantes processos que tecla detetou,
+										; enquanto a tecla estiver carregada
 
 
 
@@ -148,13 +174,54 @@ inicio:
 	
 	CALL processo_displays				; Processo de display
 	CALL processo_nave
-	CALL teclado
 	;CALL meteoros
 	;CALL misseis
+	MOV  R11, NUMERO_LINHAS				; Inicializa R11 com o valor da primeira linha a ser lida
+loop_teclados:							; Loop que chama o processo de teclado
+	CMP R11, 0							; Verifica se a linha é a ultima
+	JZ espera_movimento					; Se for, então sai do loop
+	SUB R11, 1							; Decrementa pois a linha é de 0 a 3
+	CALL teclado						; Cria uma instância do teclado
+	JMP loop_teclados
 
-	fim:
-		YIELD
-		JMP fim
+espera_movimento:						; Espera até o teclado ler algo
+	MOV R3, [TECLA_CARREGADA]
+mover_p_esquerda:						; Move a nave para a esquerda
+	CMP R3, TECLA_ESQUERDA
+	JNZ mover_p_direita
+	MOV R9, -1
+	MOV [evento_mover_nave] , R9
+	JMP tecla_é_continua
+mover_p_direita:
+	MOV R7, TECLA_DIREITA
+	CMP R3, R7
+	JNZ display_p_baixo
+	MOV R9, 1
+	MOV [evento_mover_nave] , R9
+	JMP tecla_é_continua
+display_p_baixo:
+	MOV R7, TECLA_DIMINUI_DISPLAY
+	CMP R3, R7
+	JNZ display_p_cima
+	MOV R9, -1
+	MOV [evento_energia] , R9
+	JMP tecla_n_continua
+display_p_cima:
+	MOV R7, TECLA_AUMENTA_DISPLAY
+	CMP R3, R7
+	JNZ nao_tecla
+	MOV R9, 1
+	MOV [evento_energia] , R9
+	JMP tecla_n_continua
+nao_tecla:
+tecla_é_continua:
+	MOV R7 ,1
+	MOV [TECLA_CONTINUA], R7
+	JMP espera_movimento
+tecla_n_continua:
+	MOV R7 ,0
+	MOV [TECLA_CONTINUA], R7
+	JMP espera_movimento
 
 
 
@@ -200,15 +267,16 @@ inicialização:
 	MOV R4, 0
 	CALL desenha_col_offset				; Desenha a coluna de offset
 loop_nave:
-	MOV R4, [evento_mover_nave]		; R4 recebe o evento de mover a nave
+	MOV R4, [evento_mover_nave]			; R4 recebe o evento de mover a nave
+	CMP R4, 0
 	JLT nave_para_esquerda
 nave_para_direita:
 	MOV	R6, [DEF_NAVE+2]				; Obtém a largura da nave (2º elemento da tabela DEF_NAVE)
-	MOV R2, [POSIÇAO_NAVE]   			; Vai buscar a Linha onde a Nave se encontra
+	MOV R2, [POSIÇAO_NAVE]   			; Vai buscar a Coluna onde a Nave se encontra
 	ADD R6, R2                 			; Obtém a posiçao da última coluna da nave
-	MOV	R5, MAX_COLUNA					; Obtem ultima coluna à direita do ecrãua i
+	MOV	R5, MAX_COLUNA					; Obtem ultima coluna à direita do ecrã i
 	CMP	R6, R5							; Verifica se a ultima coluna da nave ja se encontra na Coluna Limite Direito
-	JGT	fim_mover   		; Caso a nave já ocupe a ultima coluna, não se move 
+	JGE	fim_mover   					; Caso a nave já ocupe a ultima coluna, não se move 
 	JMP mover
 nave_para_esquerda:
 	MOV	R5, MIN_COLUNA          		; Guarda a Coluna do Limite Esquerdo em R4
@@ -218,7 +286,7 @@ nave_para_esquerda:
 mover:
 	CALL inicio_apaga_nave      		; Chama a rotina que apaga a Nave
     CALL desenha_col_offset   			; Chama a rotina que desenha da Nave
-fim_mover:	
+fim_mover:
 	JMP loop_nave
 
 
@@ -247,73 +315,73 @@ diminuir_displays:
 
 
 
+PROCESS SP_inicial_teclado_1
+; * [Processo]
+; *
+; * TECLADO - Faz uma leitura às teclas de uma linha do teclado e retorna o valor da tecla lida
+; * Argumentos:	R11 - linha a testar (em formato 1, 2, 4 ou 8)
+; *
+PROCESS SP_inicial_teclado_1
+teclado:
+	MOV  R2, TEC_LIN   					; Endereço do periférico das linhas
+	MOV  R3, TEC_COL   					; Endereço do periférico das colunas
+	MOV  R5, MASCARA   					; Para isolar os 4 bits de menor peso, ao ler as colunas do teclado
 
-     
-; *
-; * ESPERA_NAO_TECLA - Executa um ciclo até que nenhuma tecla esteja premida
-; * Argumentos: R0 - valor que define a tecla premida
-; *
-; *
-espera_nao_tecla:                           ; Neste ciclo espera-se até NÃO haver nenhuma tecla premida
-   CALL teclado                            ; Leitura às teclas dado a linha (R6) anteriormente gravada
-   CMP  R0, -1                             ; Se R0 = -1, nenhuma tecla está a ser premida
-   JNZ  espera_nao_tecla                   ; Espera, enquanto houver tecla uma tecla carregada
+	MOV  R1, R11						; Número da linha a testar (R11 vem em formato (0, 1, 2, 3))
+	SHL  R1, 1
+	MOV  R10, SP_TECLADO
+	MOV  SP, [R10 + R1]
 
-; *
-; * ESPERA_TECLA - Executa um ciclo até que uma tecla seja premida e, consoante a tecla, executa uma operação específica
-; * Argumentos: R0 - valor que define a tecla premida
-; *             R6 - valor que define a linha a ser lida
-; *             R9 - valor auxiliar usado para tocar um som quando se baixa um meteoro
-; *
-espera_tecla:                              
-   ADD R6, R6                              ; Linha a testar no teclado
-   MOV TEMP, 16                           
-   CMP R6, TEMP                           
-   JNZ espera_tecla_body                   ; Caso R6 seja um valor admissível (pertença a (1, 2, 4, 8)), avança para o ciclo
-   MOV R6, 1                               ; Caso R6 não seja um valor admissível (igual a 16), faz-se "reset" a R6
-                                           ; Assim, procede-se a um ciclo em que R6 assume os valores (1, 2, 4, 8)
-espera_tecla_body:             
-   CALL teclado                            ; A cada iteração, verifica-se se há alguma tecla premida na linha correspondente ao valor de R6
-                                           ; A rotina "teclado" retorna um valor entre -1 e FH, sendo que
-                                           ; todos os valores entre 0H e FH correspondem a teclas e são retornados no caso de se detetar
-                                           ; que essa tecla está a ser premida
-                                           ; e o valor -1 é retornado no evento de nenhuma tecla estiver a ser premida na linha testada
-   CMP  R0, -1                             ; Caso nenhuma tecla estiver a ser premida na linha indicada por R6, espera
-   JZ   espera_tecla                      
-                                           ; Caso contrário, consoante o valor da tecla premida, chamam-se rotinas específicas
-mover_esquerda:            
-   CMP R0, TECLA_ESQUERDA                 
-   JNZ mover_direita                       ; Passa ao próximo teste
-   CALL mover_nave_esquerda               
-   JMP espera_tecla                        ; Após processar o movimento, torna a ler o input do teclado
-                                           ; NOTA: como o movimento da nave é contínua, saltamos para "espera_tecla" em vez de "espera_nao_tecla"
-mover_direita:             
-   CMP R0, TECLA_DIREITA                  
-   JNZ baixar_meteoro                      ; Passa ao próximo teste
-   CALL mover_nave_direita                
-   JMP espera_tecla                        ; Após processar o movimento, torna a ler o input do teclado
-                                           ; NOTA: como o movimento da nave é contínua, saltamos para "espera_tecla" em vez de "espera_nao_tecla"
-baixar_meteoro:
-   CMP R0, TECLA_METEORO_BAIXO            
-   JNZ aumenta_display                     ; Passa ao próximo teste
-   MOV R9, 0                               ; Move para R9 o som de código 0
-   MOV [TOCA_SOM], R9                      ; Toca esse mesmo som
-   CALL mover_meteoro_mau                  
-   JMP espera_nao_tecla                    ; Após processar o movimento, espera que a tecla deixe de ser premida e depois torna a ler o input do teclado
- 
-aumenta_display:
-   MOV R3, TECLA_AUMENTA_DISPLAY          
-   CMP R0, R3                             
-   JNZ diminui_display                     ; Passa ao próximo teste
-   CALL aumenta_energia_display           
-   JMP espera_nao_tecla                    ; Após processar a operação, espera que a tecla deixe de ser premida e depois torna a ler o input do teclado
-diminui_display:
-   MOV R3, TECLA_DIMINUI_DISPLAY          
-   CMP R0, R3                              ; NOTA: aqui usamos um registo intermédia (R3) uma vez que o valor de TECLA_DIMINUI_DISPLAY excede a gama admitida em constantes
-   JNZ espera_tecla                        ; Torna a ler o input do teclado
-   CALL diminui_energia_display           
-   JMP espera_nao_tecla                    ; Após processar a operação, espera que a tecla deixe de ser premida e depois torna a ler o input do teclado
-  	
+	MOV  R6, 1 
+loop_fix_linha:
+	CMP  R11, 0
+	JZ end_fix_linha
+	SHL  R6, 1
+	SUB  R11, 1
+	JMP loop_fix_linha
+end_fix_linha:
+	MOV  R1, R6
+
+espera_tecla:							; Neste ciclo, espera-se até uma tecla ser premida
+
+	WAIT 								; Este ciclo é potencialmente bloqueante, pelo que tem de
+										; ter um ponto de fuga (aqui pode comutar para outro processo)
+
+	MOVB [R2], R1 						; Escrever no periférico de saída (linhas)
+	MOVB R0, [R3]      					; Ler do periférico de entrada (colunas)
+	AND  R0, R5        					; Elimina bits para além dos bits 0-3
+	CMP R0, 0							; Verifica se foi detetada alguma tecla carregada
+	JZ espera_tecla						; Se nenhuma tecla for premida, repete
+
+	CALL formata_tecla					; Converte o valor da linha e o da coluna no valor da tecla lida
+										; (retorna um valor entre 0H e FH, consoante o valor da tecla lida)
+	MOV [TECLA_CARREGADA], R0			; Informa quem estiver bloqueado neste LOCK que uma tecla foi carregada
+
+	MOV R7, [TECLA_CONTINUA]			; Informa quem estiver bloqueado neste LOCK que uma tecla está a ser carregada
+	CMP R7, 0							; Se a tecla lida não for a tecla de continuar, então é a tecla de sair
+	JNZ espera_tecla
+espera_nao_tecla:						; Neste ciclo, espera-se até NENHUMA tecla estar premida
+
+	YIELD								; Este ciclo é potencialmente bloqueante, pelo que tem de
+										; ter um ponto de fuga (aqui pode comutar para outro processo)
+
+	CALL formata_tecla					; Converte o valor da linha e o da coluna no valor da tecla lida
+										; (retorna um valor entre 0H e FH, consoante o valor da tecla lida)
+
+	MOVB [R2], R1 						; Escrever no periférico de saída (linhas)
+	MOVB R0, [R3]      					; Ler do periférico de entrada (colunas)
+	AND  R0, R5        					; Elimina bits para além dos bits 0-3
+	CMP R0, 0							; Verfica se há uma tecla premida
+	JNZ espera_nao_tecla				; Se ainda houver uma tecla premida, repete
+
+	JMP espera_tecla					; Inicia-se um ciclo infinito, uma vez que o programa
+										; nunca deve parar de verificar inputs do teclado
+										; (enquanto o jogo não estiver pausado ou parado)
+
+
+
+
+
 ; *
 ; * ATRASO - Executa um ciclo para implementar um atraso.
 ; * Argumentos:	R11 - valor que define o atraso
@@ -330,76 +398,7 @@ ciclo_atraso:							; Ciclo usado para "fazer tempo" entre movimentos sucessivos
 	RET 
 
 
-; *
-; * TECLADO - Faz uma leitura às teclas de uma linha do teclado e retorna o valor da tecla lida
-; * Argumentos:	R6 - linha a testar (em formato 1, 2, 4 ou 8)
-; *
-; * Retorna: 	R0 - valor (em hexadecimal) da tecla premida (em formato 0, 1, 2, ..., F)
-; *				NOTA: Caso nenhuma tecla esteja premida, R0 fica a -1.	
-; *
-teclado:
-	PUSH	R2
-	PUSH	R3							; Guarda o valor de todos os registos utilizados
-	PUSH	R5
-	PUSH 	R6
-	MOV  R2, TEC_LIN   					; Endereço do periférico das linhas
-	MOV  R3, TEC_COL   					; Endereço do periférico das colunas
-	MOV  R5, MASCARA   					; Para isolar os 4 bits de menor peso, ao ler as colunas do teclado
-	MOVB [R2], R6      					; Escrever no periférico de saída (linhas)
-	MOVB R0, [R3]      					; Ler do periférico de entrada (colunas)
-	AND  R0, R5        					; Elimina bits para além dos bits 0-3
-	CMP R0, 0			
-	JZ teclado_nenhuma_tecla_premida	; Caso o valor da coluna lida seja 0 (isto é, não houver nenhuma tecla premida),
-										; retorna como valor final da rotina a constante -1 e termina
-	CALL formata_linha					; caso haja uma tecla premida, converte o valor da linha lida
-										; de (1, 2, 3, 4) para (0, 1, 2, 3)
-	CALL formata_coluna					; e faz a mesma operação para o valor da coluna lida
-	MOV TEMP, 4							
-	MUL R6, TEMP
-	ADD R0, R6							; O valor da tecla é definido como sendo:
-										; 	tecla = 4 * linha + coluna
-	JMP teclado_saida					
-teclado_nenhuma_tecla_premida:
-	MOV R0, -1
-teclado_saida:
-	POP R6
-	POP	R5
-	POP	R3								; Repõe todos os registos utilizados
-	POP	R2
-	RET
 
-; * (Função auxiliar)
-; * FORMATA_LINHA - Converte o valor da linha lida de (1, 2, 4, 8) em (0, 1, 2, 3)
-; * Argumentos: R6 - valor da linha lida em (1, 2, 4, 8)
-; *
-; * Retorna:    R6 - valor da linha lida em (0, 1, 2, 3)   
-; *
-formata_linha:
-   MOV TEMP, -1
-formata_linha_ciclo:                    ; Para converter o valor da linha lida
-   ADD TEMP, 1                         	; de (1, 2, 3, 4) para (0, 1, 2, 3)
-   SHR R6, 1                           	; contamos o número de vezes que é preciso fazer SHR ao valor da linha
-   CMP R6, 0                           	; para obter 0
-   JNZ formata_linha_ciclo
-   MOV R6, TEMP
-   RET
- 
-; * (Função auxiliar)
-; * FORMATA_COLUNA - Converte o valor da coluna lida de (1, 2, 4, 8) em (0, 1, 2, 3)
-; * Argumentos: R0 - valor da coluna lida em (1, 2, 4, 8)
-; *
-; * Retorna:    R0 - valor da coluna lida em (0, 1, 2, 3)  
-; *
-formata_coluna:
-   MOV TEMP, -1
-formata_coluna_ciclo:                   ; Para converter o valor da coluna lida
-   ADD TEMP, 1                         	; de (1, 2, 3, 4) para (0, 1, 2, 3)
-   SHR R0, 1                           	; contamos o número de vezes que é preciso fazer SHR ao valor da linha
-   CMP R0, 0                          	; para obter 0
-   JNZ formata_coluna_ciclo
-   MOV R0, TEMP
-   RET
-	
 
 ; **************************************	
 ; *				  Display	 		   *
@@ -738,3 +737,60 @@ acaba_desenho_meteoro_mau:
 	POP R9
 	RET
    
+
+
+
+
+
+; * (Rotina auxiliar)
+; * FORMATA_TECLA - Converte o valor da linha lida e da coluna lida no valor da tecla lida (0H até FH)
+; * Argumentos: R1 - valor da linha lida em (1, 2, 4, 8)
+; *				R0 - valor da coluna lida em (1, 2, 4, 8)
+; *
+; * Retorna:    R0 - valor da tecla lida em (0, 1, 2, 3)   
+; *
+formata_tecla:
+	PUSH R1
+	CALL formata_linha					; caso haja uma tecla premida, converte o valor da linha lida
+										; de (1, 2, 3, 4) para (0, 1, 2, 3)
+	CALL formata_coluna					; e faz a mesma operação para o valor da coluna lida
+	MOV TEMP, 4
+	MUL R1, TEMP
+	ADD R0, R1							; O valor da tecla é definido como sendo:
+										; 	tecla = 4 * linha + coluna
+	POP R1
+	RET
+
+
+
+; * (Função auxiliar)
+; * FORMATA_LINHA - Converte o valor da linha lida de (1, 2, 4, 8) em (0, 1, 2, 3)
+; * Argumentos: R1 - valor da linha lida em (1, 2, 4, 8)
+; *
+; * Retorna:    R1 - valor da linha lida em (0, 1, 2, 3)   
+; *
+formata_linha:
+   MOV TEMP, -1
+formata_linha_ciclo:                    ; Para converter o valor da linha lida
+   ADD TEMP, 1                         	; de (1, 2, 3, 4) para (0, 1, 2, 3)
+   SHR R1, 1                           	; contamos o número de vezes que é preciso fazer SHR ao valor da linha
+   CMP R1, 0                           	; para obter 0
+   JNZ formata_linha_ciclo
+   MOV R1, TEMP
+   RET
+ 
+; * (Função auxiliar)
+; * FORMATA_COLUNA - Converte o valor da coluna lida de (1, 2, 4, 8) em (0, 1, 2, 3)
+; * Argumentos: R0 - valor da coluna lida em (1, 2, 4, 8)
+; *
+; * Retorna:    R0 - valor da coluna lida em (0, 1, 2, 3)  
+; *
+formata_coluna:
+   MOV TEMP, -1
+formata_coluna_ciclo:                   ; Para converter o valor da coluna lida
+   ADD TEMP, 1                         	; de (1, 2, 3, 4) para (0, 1, 2, 3)
+   SHR R0, 1                           	; contamos o número de vezes que é preciso fazer SHR ao valor da linha
+   CMP R0, 0                          	; para obter 0
+   JNZ formata_coluna_ciclo
+   MOV R0, TEMP
+   RET
