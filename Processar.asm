@@ -278,7 +278,7 @@ tecla_n_continua:
 PROCESS SP_nave
 processo_nave:
 inicialização:
-	MOV R10, ECRÃ_NAVE				; R10 recebe o ecrã da nave					
+	MOV R10, ECRÃ_NAVE				; R11 recebe o ecrã da nave					
 	MOV [SELECIONA_ECRÃ_N], R10	
 	MOV R2, COLUNA_INICIAL_NAVE		; R2 recebe a coluna inicial da nave
 	MOV R4, 0
@@ -296,7 +296,7 @@ nave_para_direita:
 	MOV	R5, MAX_COLUNA				; Obtem ultima coluna à direita do ecrã i
 	CMP	R6, R5						; Verifica se a ultima coluna da nave ja se encontra na Coluna Limite Direito
 	JGE	fim_mover   				; Caso a nave já ocupe a ultima coluna, não se move 
-	JMP move
+	JMP mover
 nave_para_esquerda:
 	MOV	R5, MIN_COLUNA          	; Guarda a Coluna do Limite Esquerdo em R4
 	MOV R2, [POSIÇAO_NAVE]      	; Vai buscar a Coluna onde a Nave se encontra
@@ -305,12 +305,22 @@ nave_para_esquerda:
 mover:
 	CALL inicio_apaga_nave      	; Apaga o Ecrã da NAVE apagando a Nave
     CALL desenha_col_offset   		; Chama a rotina que desenha da Nave
-	MOV R6, 3						; R5 recebe o Indíce máximo dos meteoros
+	MOV R6, 4						; R10 recebe o número de meteoros
 ver_colisões:
-	MOV R5, R6						; Copia R6 para R5 
-
+	SUB R6, 1						; Decrementa o número de meteoros
+	JN fim_mover 					; Se não houver mais meteoros, para de verificar
+	MOV R11, R6						; Copia R6 para R11 
+	SHL R11, 3						; Multiplica por 8 encontrando a posição na tabela
+	MOV R5, TABELA_METEOROS			; R5 recebe o inicio da tabela de meteoros
+	ADD R11, R5						; R11 recebe Linha da Tabela de Meteoros
+	CALL colisões_nave				; Chama a rotina que verifica se há colisão
+	CMP R5, 1						; Verifica se há colisão
+	JNZ ver_colisões				; Se não, continua a verificar
+	MOV R5, 0
+	MOV [TOCA_SOM], R5
 fim_mover:
 	JMP loop_nave
+	
 
 
 ; *
@@ -352,21 +362,21 @@ apaga_pixels_nave:
 
 ; *
 ; * COLISÕES_NAVE - Deteta Colisões com a Nave.
-; * Argumetos: R10 - Linha da Tabela de Meteoros
+; * Argumetos: R11 - Linha da Tabela de Meteoros
 ; * Retirna: R5 - Evento de Colisão
 
 colisões_nave:
 	PUSH R3
 	PUSH R4
 	MOV	R5, LINHA_NAVE					; R5 recebe a Linhaa onde a nave  encontra
-	MOV R4, [R10 + 6]					; R4 recebe a Linha do Meteoro
-	MOV R3, [R10 +2]					; Endereço da Tabela que define Meteoro
+	MOV R4, [R11 + 6]					; R4 recebe a Linha do Meteoro
+	MOV R3, [R11 +2]					; Endereço da Tabela que define Meteoro
 	MOV R3, [R3]						; R3 recebe a Altura/Largura do Meteoro (São sempre iguais)
 	ADD R4, R3							; Adiciona a Altura do Meteoro à Linha do Meteoro
 	CMP R4, R5							; Verifica se a nave se encontra abaixo da linha do meteoro
 	JLT não_colide						; Se não, não há colisão
 	MOV R5, [POSIÇAO_NAVE]				; R5 recebe a Coluna onde a nave se encontra
-	MOV R4, [R10 + 4]					; R4 recebe a Coluna do Meteoro
+	MOV R4, [R11 + 4]					; R4 recebe a Coluna do Meteoro
 	ADD R4, R3							; Adiciona a largura do meteoro à coluna do meteoro
 	CMP R5, R4							; Verifica se a esquerda da nave se encontra à esquerda da coluna direita do meteoro
 	JGT não_colide						; Se não, não há colisão
@@ -985,14 +995,22 @@ inicio_ciclo_processo_meteoro:
 	MOV R10, 3							; Número de meteoros a desenhar -1 | R10 vai ser o Index do meteoro
 ciclo_processo_meteoro:
 	MOV R11, R10
-	MOV R5, 8
-	MUL R11, R5							; valor a somar para obter linha da tabela correspondente ao meteoro
+	SHL R11, 3										; valor a somar para obter linha da tabela correspondente ao meteoro
 	CALL apaga_meteoro
 	CALL linha_seguinte
+	MOV R5, TABELA_METEOROS
+	ADD R11, R5
+	CALL colisões_nave
+	CMP R5, 1							
+	JZ ohohoh									; caso colida
 	SUB R10, 1
 	JN inicio_ciclo_processo_meteoro
 	JMP ciclo_processo_meteoro
-
+ohohoh:
+	MOV R5, 0
+	MOV [TOCA_SOM], R5
+	CALL apaga_meteoro
+	JMP inicio_ciclo_processo_meteoro
 
 
 
