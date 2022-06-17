@@ -35,6 +35,7 @@ DEFINE_PIXEL    		EQU 6012H      	; Endereço do comando para escrever um pixel
 APAGA_AVISO     		EQU 6040H      	; Endereço do comando para apagar o aviso de nenhum cenário selecionado
 APAGA_ECRÃ	 			EQU 6002H      	; Endereço do comando para apagar todos os pixels já desenhados
 SELECIONA_CENARIO_FUNDO EQU 6042H      	; Endereço do comando para selecionar uma imagem de fundo
+SELECIONA_ECRÃ_ESP 		EQU 6004H       ; Endereço do comando para selecionar o ecrã especificado
 TOCA_SOM				EQU 605AH      	; Endereço do comando para tocar um som
 
 
@@ -102,6 +103,9 @@ SP_inicial_teclado_3:					; este é o endereço (2800H) com que o SP deste proce
 	STACK 100H							; espaço reservado para a pilha do processo "teclado" (linha 1)
 SP_inicial_teclado_4:					; este é o endereço (3000H) com que o SP deste processo deve ser inicializado
 
+	STACK 100H							; espaço reservado para a pilha do processo "pausa" (linha 1)
+SP_inicial_pausa:					; este é o endereço (3200H) com que o SP deste processo deve ser inicializado
+
 
 SP_TECLADO:
 	WORD SP_inicial_teclado_1
@@ -118,6 +122,11 @@ evento_energia:
 
 tab_int:
 	WORD rot_int_2						; rotina de interrupção 2
+
+LOCK_GAMESTATE_PAUSED:
+	LOCK 0H
+WORD_GAMESTATE_PAUSED:
+	WORD 0H
 
 LOCK_PRINCIPAL:
 	LOCK 0H								; lock para o programa principal 
@@ -161,31 +170,47 @@ POSIÇAO_METEORO:
 ; +--------+
 PLACE   0                     			; o código tem de começar em 0000H
 inicio:
-	MOV  [APAGA_AVISO], R1	    		; Apaga o aviso de nenhum cenário selecionado 
-    MOV  [APAGA_ECRÃ], R1	    		; Apaga todos os pixels já desenhados 
-	MOV	 R1, 0			        		; Cenário de fundo número 0
-    MOV  [SELECIONA_CENARIO_FUNDO], R1	; Seleciona o cenário de fundo
 	MOV  SP, SP_inicial					; Inicializa o SP (stack pointer)
 	MOV  BTE, tab_int					; Inicializa a tabela de interrupções
 
+	MOV  [APAGA_AVISO], R1	    		; Apaga o aviso de nenhum cenário selecionado 
+    MOV  [APAGA_ECRÃ], R1	    		; Apaga todos os pixels já desenhados 
+	MOV	 R1, 1			        		; Cenário de fundo número 0
+    MOV  [SELECIONA_CENARIO_FUNDO], R1	; Seleciona o cenário de fundo
 	EI0 								; Ativa a interrupção 0
     EI
+
+	MOV  R11, NUMERO_LINHAS				; Inicializa R11 com o valor da primeira linha a ser lida
+loop_teclados:							; Loop que chama o processo de teclado
+	CMP R11, 0							; Verifica se a linha é a ultima
+	JZ start_game						; Se for, então sai do loop
+	SUB R11, 1							; Decrementa pois a linha é de 0 a 3
+	CALL teclado						; Cria uma instância do teclado
+	JMP loop_teclados
+
+start_game:
+	MOV R4, TECLA_DIMINUI_DISPLAY
+	MOV R3, [TECLA_CARREGADA]
+	MOV R7, 0
+	MOV [TECLA_CONTINUA], R7
+	CMP R3, R4
+	JNZ start_game
+
+	MOV  [APAGA_AVISO], R1	    		; Apaga o aviso de nenhum cenário selecionado 
+    MOV  [APAGA_ECRÃ], R1	    		; Apaga todos os pixels já desenhados 
+	MOV R1, 0							; Cenário de fundo número 0
+	MOV [SELECIONA_CENARIO_FUNDO], R1	; Seleciona o cenário de fundo
 
 	
 	CALL processo_displays				; Processo de display
 	CALL processo_nave
 	;CALL meteoros
 	;CALL misseis
-	MOV  R11, NUMERO_LINHAS				; Inicializa R11 com o valor da primeira linha a ser lida
-loop_teclados:							; Loop que chama o processo de teclado
-	CMP R11, 0							; Verifica se a linha é a ultima
-	JZ espera_movimento					; Se for, então sai do loop
-	SUB R11, 1							; Decrementa pois a linha é de 0 a 3
-	CALL teclado						; Cria uma instância do teclado
-	JMP loop_teclados
-
 espera_movimento:						; Espera até o teclado ler algo
 	MOV R3, [TECLA_CARREGADA]
+	MOV R4, [WORD_GAMESTATE_PAUSED]
+	CMP R4, 1
+	JZ tecla_n_continua
 mover_p_esquerda:						; Move a nave para a esquerda
 	CMP R3, TECLA_ESQUERDA
 	JNZ mover_p_direita
@@ -202,29 +227,63 @@ mover_p_direita:
 display_p_baixo:
 	MOV R7, TECLA_DIMINUI_DISPLAY
 	CMP R3, R7
-	JNZ display_p_cima
+	JNZ suspender_jogo
 	MOV R9, -1
 	MOV [evento_energia] , R9
 	JMP tecla_n_continua
-display_p_cima:
+;display_p_cima:
+;	MOV R7, TECLA_AUMENTA_DISPLAY
+;	CMP R3, R7
+;	JNZ nao_tecla
+;	MOV R9, 1
+;	MOV [evento_energia] , R9
+;	JMP tecla_n_continua
+
+suspender_jogo:
 	MOV R7, TECLA_AUMENTA_DISPLAY
 	CMP R3, R7
 	JNZ nao_tecla
 	MOV R9, 1
-	MOV [evento_energia] , R9
+	MOV [LOCK_GAMESTATE_PAUSED], R9
+	MOV [WORD_GAMESTATE_PAUSED], R9
 	JMP tecla_n_continua
 nao_tecla:
 tecla_é_continua:
-	MOV R7 ,1
+	MOV R7, 1
 	MOV [TECLA_CONTINUA], R7
 	JMP espera_movimento
 tecla_n_continua:
-	MOV R7 ,0
+	MOV R7, 0
 	MOV [TECLA_CONTINUA], R7
 	JMP espera_movimento
 
 
 
+PROCESS SP_inicial_pausa
+processo_pausa:
+	MOV R0, [LOCK_GAMESTATE_PAUSED]
+	MOV R1, 1
+	CMP R0, R1
+	;JNZ processo_pausa
+pause:
+	DI
+	MOV [APAGA_AVISO], R1
+	MOV R1, 2
+	MOV [SELECIONA_CENARIO_FUNDO], R1
+
+resume:
+	MOV R5, [TECLA_CARREGADA]
+	MOV R4, TECLA_AUMENTA_DISPLAY
+	CMP R5, R4
+	JNZ resume
+	MOV R11, 0
+	MOV [LOCK_GAMESTATE_PAUSED], R11
+	MOV [WORD_GAMESTATE_PAUSED], R11
+	EI
+	MOV [APAGA_AVISO], R1
+	MOV R1, 0
+	MOV [SELECIONA_CENARIO_FUNDO], R1
+	JMP processo_pausa
 
 
 
