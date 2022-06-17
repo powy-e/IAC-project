@@ -104,7 +104,10 @@ SP_inicial_teclado_3:					; este é o endereço (2800H) com que o SP deste proce
 SP_inicial_teclado_4:					; este é o endereço (3000H) com que o SP deste processo deve ser inicializado
 
 	STACK 100H							; espaço reservado para a pilha do processo "pausa" (linha 1)
-SP_inicial_pausa:					; este é o endereço (3200H) com que o SP deste processo deve ser inicializado
+SP_inicial_pausa:						; este é o endereço (3200H) com que o SP deste processo deve ser inicializado
+
+	STACK 100H							; espaço reservado para a pilha do processo "morte" (linha 1)
+SP_inicial_morte:						; este é o endereço (3400H) com que o SP deste processo deve ser inicializado
 
 
 SP_TECLADO:
@@ -119,6 +122,9 @@ evento_mover_nave:
 
 evento_energia:
 	LOCK 0H								; lock para a energia
+
+evento_morte:
+	LOCK 0H
 
 tab_int:
 	WORD rot_int_2						; rotina de interrupção 2
@@ -204,6 +210,8 @@ start_game:
 	
 	CALL processo_displays				; Processo de display
 	CALL processo_nave
+	CALL processo_pausa
+	CALL processo_morte
 	;CALL meteoros
 	;CALL misseis
 espera_movimento:						; Espera até o teclado ler algo
@@ -263,9 +271,10 @@ PROCESS SP_inicial_pausa
 processo_pausa:
 	MOV R0, [LOCK_GAMESTATE_PAUSED]
 	MOV R1, 1
-	CMP R0, R1
-	;JNZ processo_pausa
+	CMP R0, 1
+	JNZ processo_pausa
 pause:
+	DI0
 	DI
 	MOV [APAGA_AVISO], R1
 	MOV R1, 2
@@ -279,13 +288,26 @@ resume:
 	MOV R11, 0
 	MOV [LOCK_GAMESTATE_PAUSED], R11
 	MOV [WORD_GAMESTATE_PAUSED], R11
+	EI0
 	EI
 	MOV [APAGA_AVISO], R1
 	MOV R1, 0
 	MOV [SELECIONA_CENARIO_FUNDO], R1
 	JMP processo_pausa
 
+PROCESS SP_inicial_morte
+processo_morte:
+	MOV R0, [evento_morte]
+	CMP R0, 1
+	JNZ processo_morte
 
+morte:
+	DI0
+	DI
+	MOV [APAGA_ECRÃ], R1
+	MOV R1, 3
+	MOV [SELECIONA_CENARIO_FUNDO], R1
+	JMP morte
 
 
 
@@ -511,14 +533,21 @@ exit_aumenta_energia_display:
 diminui_energia_display:
 	PUSH R0								; Guarda o valor de R0
 	PUSH R4								; Guarda o valor de R4
+	PUSH R8								; Guarda o valor de R8
 	MOV R0, [ENERGIA]					; Coloca em R0 o valor inicial da energia
 	CMP R0, VALOR_ENERGIA_DIMINUI		; Se a energia for maior que 5, não altera
-	JLT exit_diminui_energia_display   
-	SUB R0, 5 
+	JLT out_of_energy  
+	SUB R0, 5
+	MOV R11, R0
 	MOV [ENERGIA], R0					; Guarda energia na memória
 	CALL energia_para_decimal			; Converte a energia para decimal
 	MOV [ENDEREÇO_DISPLAY], R4			; Coloca o valor inicial no display
-exit_diminui_energia_display: 
+	JMP exit_diminui_energia_display
+out_of_energy:
+	MOV R8, 1H
+	MOV [evento_morte], R8
+exit_diminui_energia_display:
+	POP R8								; Restaura o valor de R8
 	POP R4								; Restaura o valor de R4
 	POP R0								; Restaura o valor de R0
 	RET
