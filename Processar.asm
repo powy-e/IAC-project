@@ -38,12 +38,12 @@ SELECIONA_CENARIO_FUNDO EQU 6042H      	; Endereço do comando para selecionar u
 TOCA_SOM				EQU 605AH      	; Endereço do comando para tocar um som
 
 
-ATRASO					EQU	0FFFH		; Atraso para limitar a velocidade de movimento
+ATRASO					EQU	0FFFFH		; Atraso para limitar a velocidade de movimento
 
 ENDEREÇO_DISPLAY		EQU 0A000H		; Endereço do display (POUT-2)
 ENERGIA_INICIAL			EQU	100			; Energia inicial da nave
-VALOR_ENERGIA_AUMENTO 	EQU 5			; Valor de energia a aumentar por comando
-VALOR_ENERGIA_DIMINUI 	EQU 5			; Valor de energia a diminuir por comando
+VALOR_ENERGIA_AUMENTO 	EQU 1			; Valor de energia a aumentar por comando
+VALOR_ENERGIA_DIMINUI 	EQU 1			; Valor de energia a diminuir por comando
 
 
 LINHA_NAVE        		EQU 28        	; Linha base da nave (a meio do ecrã)
@@ -64,6 +64,7 @@ MAX_COLUNA				EQU  64     	; Número da última coluna à direita no ecrã
 
 
 COR_PIXEL_METEORO       EQU 0FF05H   	
+COR_PIXEL_MISSIL 		EQU 0FD45H
 
 ; Cores dos pixeis da nave
 PIXEL_VERMELHO 			EQU	0FF00H
@@ -102,6 +103,8 @@ SP_inicial_teclado_3:					; este é o endereço (2800H) com que o SP deste proce
 	STACK 100H							; espaço reservado para a pilha do processo "teclado" (linha 1)
 SP_inicial_teclado_4:					; este é o endereço (3000H) com que o SP deste processo deve ser inicializado
 
+	STACK 100H							; espaço reservado para a pilha do processo "míssil"
+SP_míssil:
 
 SP_TECLADO:
 	WORD SP_inicial_teclado_1
@@ -117,6 +120,7 @@ evento_energia:
 	LOCK 0H								; lock para a energia
 
 tab_int:
+	WORD rot_int_1   					; rotina de interrupção 1
 	WORD rot_int_2						; rotina de interrupção 2
 
 LOCK_PRINCIPAL:
@@ -156,6 +160,10 @@ DEF_METEORO_MAU:						; tabela que define o meteoro mau
 POSIÇAO_METEORO:
 	WORD LINHA_INICIAL_METEORO
 
+
+LINHA_ATUAL_MISSIL:	; serÁ alteradA para definir a linha atual do míssil
+	WORD LINHA_NAVE		
+
 ; +--------+
 ; | CÓDIGO |
 ; +--------+
@@ -169,6 +177,7 @@ inicio:
 	MOV  BTE, tab_int					; Inicializa a tabela de interrupções
 
 	EI0 								; Ativa a interrupção 0
+	EI1
     EI
 
 	
@@ -513,7 +522,6 @@ mover_nave_esquerda:
     CALL inicio_apaga_nave      		; Chama a rotina que apaga a Nave
     CALL desenha_col_offset   			; Chama a rotina que desenha da Nave
 	CALL inicio_ciclo_atraso			; Atrasa a execução do próximo comando, tornando o movimento mais fluido
-	
 fim_movimento_esquerda:
     POP R2								; Repõe todos os registos utilizados
     POP R4
@@ -794,3 +802,141 @@ formata_coluna_ciclo:                   ; Para converter o valor da coluna lida
    JNZ formata_coluna_ciclo
    MOV R0, TEMP
    RET
+
+
+
+
+
+
+
+
+;--------BIAAAAAAA---------
+
+
+rot_int_1:
+	MOV  [evento_mover_míssil], R0			; Carrega o valor da variável evento_mover_míssil
+	RFE
+
+
+;;;;; MISSEIS
+PROCESS SP_míssil
+
+processo_misseis:	; chamado qd tecla missil premida (TECLA 1) 
+inicio_processo_misseis:
+	MOV R0, [evento_disparar_míssil]
+	MOV R3, 13							; Contador de movimentos do míssil (máximo é 12) - 
+inicialização_míssil:					; 		    - definido como 13 para comparar com 0
+	MOV R2, LINHA_NAVE
+	MOV [LINHA_ATUAL_MISSIL], R2
+	MOV R1, [POSIÇAO_NAVE]				; Obtém a coluna da nave
+	ADD R1, 2							; Obtém a coluna do meio da nave, de onde sai o míssil
+ciclo_misseis:
+	CALL desenha_míssil
+; SOM DISPARO MISSIL
+	MOV R1, 0 					; Ainda só há 1 som
+	MOV [TOCA_SOM], R1
+; REDUZIR ENERGIA DISPLAY EM 5%
+inicio_verifica_colisão:
+	MOV R10, 4							; contador dos meteoros com que se vai avaliar a existência de colisão
+	MOV R2, [LINHA_ATUAL_MISSIL]		; Obtém a linha onde se encontra o míssil
+verifica_colisão:
+	SUB R10, 1							; R10 assume o índice do meteoro que se vai avaliar (argumento para a função linha_seguinte caso haja colisão)
+	JN não_houve_colisão
+	MOV R6, TABELA_METEOROS				; Aponta para a tabela de meteoros
+	MOV R5, R10							; Copia o índice do meteoro que vai ser avaliado 
+	SHL R5, 3							; Obtém valor a somar à tabela de meteoros para obter o tipo do meteoro 
+	ADD R6, R5							; Obtém o endereço para o tipo de meteoro
+	MOV R9, R6							; Copia o endereço para R9, pois R6 será usado caso haja colisão
+	MOV R7, [R9+6]						; Obtém a linha do meteoro com indíce R10
+	MOV R5, [R9+4]						; Obtém a coluna inicial do meteoro com indíce R4
+	CMP R1, R5							; Compara a coluna do míssil com acoluna inicial do meteoro
+	JLT verifica_colisão				; Se a coluna do míssil for menor que a inicial do meteoro, não há colisão (verifica próximo meteoro)
+	MOV R9, [R9+2]						; Obtém o endereço para a definição do desenho do meteoro
+	ADD R8, [R9]						; Obtém a coluna final do meteoro, somando a largura à inicial
+	ADD R7, [R9]						; Obtém a linha final do meteoro, somando a altura à inicial 
+	CMP R2, R7							; Compara a próxima linha do míssil com a última linha do meteoro
+	JNZ verifica_colisão				; Se as linhas não coincidirem, não pode haver colisão (verifica próximo meteoro)
+	CMP R2, R8							; Compara a coluan do míssil com a última coluna do meteoro
+	JGT verifica_colisão				; Se a coluna do míssil for maior que a última do meteoro, não há colisão (verifica próximo meteoro)
+não_houve_colisão:
+	SUB R3, 1							; Diminui contador de movimentos
+	JZ fim_ciclo_mísseis				; Atingiu o limite de movimentos
+	MOV R1, [evento_mover_míssil]
+	CALL apaga_míssil
+	JMP ciclo_misseis
+fim_ciclo_mísseis:
+	CALL apaga_míssil
+	JMP inicio_processo_misseis
+houve_colisão:
+	MOV R5, [R6]						; Obtém o tipo do meteoro
+	MOV R7, TIPO_METEORO_MAU
+	CMP R5, R7							; Compara o tipo do meteoro com o tipo de meteoro mau
+	JZ colisão_meteoro_mau
+	; SOM da COLISÃO					; colisão com um meteoro bom
+	MOV R1, 0 					; Ainda só há 1 som
+	MOV [TOCA_SOM], R1
+	; IMAGEM
+	MOV R5, DEF_EXPLOSÃO_METEORO_BOM	; Aponta para a definição da explosão do meteoro bom
+rot_destruição:
+	CALL apaga_míssil	 
+	CALL apaga_meteoro					; apaga metero de indíce R10	
+	MOV R4, 0							; offset 0 para não alterar a posição do meteoro (argumento para a função linha_seguinte)
+	MOV R11, R6							 
+	MOV R6, TABELA_METEOROS
+	SUB R11, R6							; Obtém valor a somar á tabela de meteoros para obter o endereço do tipo de meteoro (argumento para a função linha_seguinte)
+	MOV [R6+2], R5						; Atualiza endereço da definição do meteoro para a do meteoro explodido
+	CALL linha_seguinte
+	CALL apaga_meteoro
+	JMP inicio_processo_misseis
+
+colisão_meteoro_mau:
+	MOV R5, DEF_EXPLOSÃO_METEORO_MAU	; Aponta para a definição da explosão do meteoro mau
+	; SOM da COLISÃO					; colisão com um meteoro bom
+	MOV R1, 0 					; Ainda só há 1 som
+	MOV [TOCA_SOM], R1
+	; IMAGEM
+	
+	; AUMENTA ENERGIA DISPLAYS EM 5%
+	JMP rot_destruição
+
+
+
+; * DESENHA_MÍSSIL - Desenha o míssil no ecrã na linha seguinte (ou pela primeira vez, usando como linha inicial a última)
+; * Argumentos - R1 - coluna onde o míssil se desloca
+; * 
+desenha_míssil:
+	PUSH R3
+	PUSH R2
+	MOV R2, [LINHA_ATUAL_MISSIL]		; Obtém a linha onde se encontra o míssil
+	SUB R2, 1	
+	MOV [LINHA_ATUAL_MISSIL], R2		; Atualiza a linha onde se encontrará o míssil
+	MOV R3, COR_PIXEL_MISSIL
+	MOV [DEFINE_LINHA], R2				; Seleciona a linha
+	MOV [DEFINE_COLUNA], R1				; Seleciona a coluna
+	MOV [DEFINE_PIXEL], R3				; Altera a cor do pixel na linha e coluna selecionadas
+	POP R2
+	POP R3
+
+; * APAGA_MÍSSIL - Apaga o míssil do ecrã.
+; * Argumentos: R1 - coluna onde o míssil se desloca
+; * 
+apaga_míssil:
+	PUSH R2
+	PUSH R3
+	MOV R2, [LINHA_ATUAL_MISSIL]				; Obtém a linha onde se encontra o míssil
+	MOV R3, 0
+	MOV [DEFINE_LINHA], R2				; Seleciona a linha
+	MOV [DEFINE_COLUNA], R1				; Seleciona a coluna
+	MOV [DEFINE_PIXEL], R3				; Apaga o míssil na linha e coluna selecionadas
+	POP R3
+	POP R2
+
+
+
+COR_PIXEL_MISSIL 		EQU 0FD45H
+
+	STACK 100H							; espaço reservado para a pilha do processo "míssil"
+SP_míssil:
+
+LINHA_ATUAL_MISSIL:	; será alterada para definir a linha atual do míssil
+	WORD LINHA_NAVE		
