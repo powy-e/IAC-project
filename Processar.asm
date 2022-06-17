@@ -368,22 +368,22 @@ apaga_pixels_nave:
 colisões_nave:
 	PUSH R3
 	PUSH R4
-	MOV	R5, LINHA_NAVE					; R5 recebe a Linhaa onde a nave  encontra
-	MOV R4, [R11 + 6]					; R4 recebe a Linha do Meteoro
+	MOV	R5, LINHA_NAVE					; R5 recebe a Linha onde a nave  encontra
+	MOV R4, [R11 + 6]					; R4 recebe a Linha onde se encontra o Meteoro
 	MOV R3, [R11 +2]					; Endereço da Tabela que define Meteoro
 	MOV R3, [R3]						; R3 recebe a Altura/Largura do Meteoro (São sempre iguais)
 	ADD R4, R3							; Adiciona a Altura do Meteoro à Linha do Meteoro
 	CMP R4, R5							; Verifica se a nave se encontra abaixo da linha do meteoro
-	JLT não_colide						; Se não, não há colisão
+	JLE não_colide						; Se não, não há colisão
 	MOV R5, [POSIÇAO_NAVE]				; R5 recebe a Coluna onde a nave se encontra
 	MOV R4, [R11 + 4]					; R4 recebe a Coluna do Meteoro
 	ADD R4, R3							; Adiciona a largura do meteoro à coluna do meteoro
 	CMP R5, R4							; Verifica se a esquerda da nave se encontra à esquerda da coluna direita do meteoro
-	JGT não_colide						; Se não, não há colisão
+	JGE não_colide						; Se não, não há colisão
 	ADD R5, LARGURA_NAVE				; Adiciona a largura da nave à coluna da nave
 	SUB R4, R3							; Subtrai a largura do meteoro à coluna do meteoro
 	CMP R5, R4							; Verifica se a direita da nave se encontra à direita da coluna esquerda do meteoro
-	JLT não_colide						; Se não, não há colisão
+	JLE não_colide						; Se não, não há colisão
 	MOV R5, 1							; Se há colisão, R5 recebe 1
 	JMP fim_colisões_nave
 não_colide:
