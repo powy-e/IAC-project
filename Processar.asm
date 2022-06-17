@@ -314,8 +314,9 @@ ver_colisões:
 	MOV R5, TABELA_METEOROS			; R5 recebe o inicio da tabela de meteoros
 	ADD R11, R5						; R11 recebe Linha da Tabela de Meteoros
 	CALL colisões_nave				; Chama a rotina que verifica se há colisão
-	CMP R5, 1						; Verifica se há colisão
-	JNZ ver_colisões				; Se não, continua a verificar
+	CMP R5, 0						; Verifica se há colisão
+	JZ ver_colisões				; Se não, continua a verificar
+colide:
 	MOV R5, 0
 	MOV [TOCA_SOM], R5
 fim_mover:
@@ -363,8 +364,7 @@ apaga_pixels_nave:
 ; *
 ; * COLISÕES_NAVE - Deteta Colisões com a Nave.
 ; * Argumetos: R11 - Linha da Tabela de Meteoros
-; * Retirna: R5 - Evento de Colisão
-
+; * Retorna: R5 - Evento de Colisão 0 - Não houve colisão caso contrário passa o tipo de meteoro
 colisões_nave:
 	PUSH R3
 	PUSH R4
@@ -384,7 +384,7 @@ colisões_nave:
 	SUB R4, R3							; Subtrai a largura do meteoro à coluna do meteoro
 	CMP R5, R4							; Verifica se a direita da nave se encontra à direita da coluna esquerda do meteoro
 	JLE não_colide						; Se não, não há colisão
-	MOV R5, 1							; Se há colisão, R5 recebe 1
+	MOV R5, [R11]						; Se há colisão, R5 recebe 1
 	JMP fim_colisões_nave
 não_colide:
 	MOV R5, 0							; Se não há colisão, R5 recebe 0
@@ -1001,8 +1001,8 @@ ciclo_processo_meteoro:
 	MOV R5, TABELA_METEOROS
 	ADD R11, R5
 	CALL colisões_nave
-	CMP R5, 1							
-	JZ ohohoh									; caso colida
+	CMP R5, 0							
+	JNZ ohohoh									; caso colida
 	SUB R10, 1
 	JN inicio_ciclo_processo_meteoro
 	JMP ciclo_processo_meteoro
