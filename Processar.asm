@@ -32,6 +32,7 @@ TECLA_DIMINUI_DISPLAY	EQU 0CH			; Tecla C
 DEFINE_LINHA    		EQU 600AH      	; Endereço do comando para definir a linha
 DEFINE_COLUNA   		EQU 600CH      	; Endereço do comando para definir a coluna
 DEFINE_PIXEL    		EQU 6012H      	; Endereço do comando para escrever um pixel
+DEFINE_COR_CANETA  		EQU 6014H      	; Endereço do comando para escrever um pixel
 APAGA_AVISO     		EQU 6040H      	; Endereço do comando para apagar o aviso de nenhum cenário selecionado
 APAGA_ECRÃS	 			EQU 6002H      	; Endereço do comando para apagar todos os pixels já desenhados
 APAGA_ECRÃ_N	 		EQU 6000H      	; Endereço do comando para apagar todos os pixels já desenhados
@@ -83,7 +84,7 @@ PIXEL_AZUL 				EQU	0F0AFH
 ; +-------+
 	PLACE       2000H
 pilha:
-	STACK 200H							; espaço reservado para a pilha 
+	STACK 300H							; espaço reservado para a pilha 
 										; (400H bytes, pois são 200H words)
 SP_inicial:								; este é o endereço (1400H) com que o SP deve ser 
 										; inicializado. O 1.º end. de retorno será 
@@ -277,36 +278,111 @@ tecla_n_continua:
 PROCESS SP_nave
 processo_nave:
 inicialização:
-	MOV R2, COLUNA_INICIAL_NAVE	; R2 recebe a coluna inicial da nave
+	MOV R10, ECRÃ_NAVE				; R10 recebe o ecrã da nave					
+	MOV [SELECIONA_ECRÃ_N], R10	
+	MOV R2, COLUNA_INICIAL_NAVE		; R2 recebe a coluna inicial da nave
 	MOV R4, 0
-	CALL desenha_col_offset				; Desenha a coluna de offset
+	CALL desenha_col_offset			; Desenha a coluna de offset
 loop_nave:
-	MOV R4, [evento_mover_nave]			; R4 recebe o evento de mover a nave
+	MOV R10, ECRÃ_NAVE				; R10 recebe o ecrã da nave					
+	MOV [SELECIONA_ECRÃ_N], R10	
+	MOV R4, [evento_mover_nave]		; R4 recebe o evento de mover a nave
 	CMP R4, 0
 	JLT nave_para_esquerda
 nave_para_direita:
-	MOV	R6, [DEF_NAVE+2]				; Obtém a largura da nave (2º elemento da tabela DEF_NAVE)
-	MOV R2, [POSIÇAO_NAVE]   			; Vai buscar a Coluna onde a Nave se encontra
-	ADD R6, R2                 			; Obtém a posiçao da última coluna da nave
-	MOV	R5, MAX_COLUNA					; Obtem ultima coluna à direita do ecrã i
-	CMP	R6, R5							; Verifica se a ultima coluna da nave ja se encontra na Coluna Limite Direito
-	JGE	fim_mover   					; Caso a nave já ocupe a ultima coluna, não se move 
-	JMP mover
+	MOV	R6, [DEF_NAVE+2]			; Obtém a largura da nave (2º elemento da tabela DEF_NAVE)
+	MOV R2, [POSIÇAO_NAVE]   		; Vai buscar a Coluna onde a Nave se encontra
+	ADD R6, R2                 		; Obtém a posiçao da última coluna da nave
+	MOV	R5, MAX_COLUNA				; Obtem ultima coluna à direita do ecrã i
+	CMP	R6, R5						; Verifica se a ultima coluna da nave ja se encontra na Coluna Limite Direito
+	JGE	fim_mover   				; Caso a nave já ocupe a ultima coluna, não se move 
+	JMP move
 nave_para_esquerda:
-	MOV	R5, MIN_COLUNA          		; Guarda a Coluna do Limite Esquerdo em R4
-	MOV R2, [POSIÇAO_NAVE]      		; Vai buscar a Coluna onde a Nave se encontra
-	CMP	R2, R5                  		; Verifica se a nave se encontra na coluna limite
-	JLE	fim_mover 		; Se sim, não se pode mover   
+	MOV	R5, MIN_COLUNA          	; Guarda a Coluna do Limite Esquerdo em R4
+	MOV R2, [POSIÇAO_NAVE]      	; Vai buscar a Coluna onde a Nave se encontra
+	CMP	R2, R5                  	; Verifica se a nave se encontra na coluna limite
+	JLE	fim_mover 					; Se sim, não se pode mover   
 mover:
-	CALL inicio_apaga_nave      		; Chama a rotina que apaga a Nave
-    CALL desenha_col_offset   			; Chama a rotina que desenha da Nave
+	CALL inicio_apaga_nave      	; Apaga o Ecrã da NAVE apagando a Nave
+    CALL desenha_col_offset   		; Chama a rotina que desenha da Nave
+	MOV R6, 3						; R5 recebe o Indíce máximo dos meteoros
+ver_colisões:
+	MOV R5, R6						; Copia R6 para R5 
+
 fim_mover:
 	JMP loop_nave
 
 
+; *
+; * INICIO_APAGA_NAVE - Apaga a nave, começando por obter a posição 
+; *  da nave e apagando-a linha a linha, num ciclo.
+; *
+inicio_apaga_nave:
+	PUSH R9	
+	PUSH R8	
+	PUSH R6								; Guarda todos os registos utilizados
+	PUSH R5
+	PUSH R3
+	MOV R3,	ECRÃ_NAVE					; R3 recebe a coluna onde a nave se encontra
+	MOV [SELECIONA_ECRÃ_N], R3
+    MOV R9, LINHA_NAVE					; obtém a linha onde começa a nave
+    MOV R8, [DEF_NAVE]					; obtém a altura da nave que serve como contador de linhas
+	MOV	R3, 0			        		; para apagar, a cor do pixel é 0
+	JMP apaga_linha_nave
+apaga_linha_nave:		
+	MOV	R6, [POSIÇAO_NAVE]				; cópia da coluna da nave
+	MOV	R5, [DEF_NAVE+2]				; obtém a largura da nave
+apaga_pixels_nave:       				
+	MOV  [DEFINE_LINHA], R9	    		; seleciona a linha
+	MOV  [DEFINE_COLUNA], R6			; seleciona a coluna
+	MOV  [DEFINE_PIXEL], R3	    		; altera a cor do pixel na linha e coluna selecionadas
+    ADD  R6, 1                  		; Passa à próxima coluna
+    SUB  R5, 1			        		; Reduz o contador de colunas por apagar
+    JNZ  apaga_pixels_nave				; Continua até percorrer toda a largura do objeto
+	ADD R9, 1                   		; Passa à linha seguinte
+    SUB R8, 1                   		; Reduz o contador das linhas por apagar
+	JNZ apaga_linha_nave        		; Vai apagar a próxima linha da nave
+	POP R3
+	POP R5
+	POP R6								; Repõe todos os registos utilizados
+	POP R8
+	POP R9
+    RET
 
 
+; *
+; * COLISÕES_NAVE - Deteta Colisões com a Nave.
+; * Argumetos: R10 - Linha da Tabela de Meteoros
+; * Retirna: R5 - Evento de Colisão
 
+colisões_nave:
+	PUSH R3
+	PUSH R4
+	MOV	R5, LINHA_NAVE					; R5 recebe a Linhaa onde a nave  encontra
+	MOV R4, [R10 + 6]					; R4 recebe a Linha do Meteoro
+	MOV R3, [R10 +2]					; Endereço da Tabela que define Meteoro
+	MOV R3, [R3]						; R3 recebe a Altura/Largura do Meteoro (São sempre iguais)
+	ADD R4, R3							; Adiciona a Altura do Meteoro à Linha do Meteoro
+	CMP R4, R5							; Verifica se a nave se encontra abaixo da linha do meteoro
+	JLT não_colide						; Se não, não há colisão
+	MOV R5, [POSIÇAO_NAVE]				; R5 recebe a Coluna onde a nave se encontra
+	MOV R4, [R10 + 4]					; R4 recebe a Coluna do Meteoro
+	ADD R4, R3							; Adiciona a largura do meteoro à coluna do meteoro
+	CMP R5, R4							; Verifica se a esquerda da nave se encontra à esquerda da coluna direita do meteoro
+	JGT não_colide						; Se não, não há colisão
+	ADD R5, LARGURA_NAVE				; Adiciona a largura da nave à coluna da nave
+	SUB R4, R3							; Subtrai a largura do meteoro à coluna do meteoro
+	CMP R5, R4							; Verifica se a direita da nave se encontra à direita da coluna esquerda do meteoro
+	JLT não_colide						; Se não, não há colisão
+	MOV R5, 1							; Se há colisão, R5 recebe 1
+	JMP fim_colisões_nave
+não_colide:
+	MOV R5, 0							; Se não há colisão, R5 recebe 0
+fim_colisões_nave:
+	POP R4
+	POP R3
+	RET
+	
 rot_int_2:
 	PUSH R0
 	MOV  R0, -1
@@ -334,7 +410,7 @@ diminuir_displays:
 
 
 
-PROCESS SP_inicial_teclado_1
+;PROCESS SP_inicial_teclado_1
 ; * [Processo]
 ; *
 ; * TECLADO - Faz uma leitura às teclas de uma linha do teclado e retorna o valor da tecla lida
@@ -514,93 +590,6 @@ ciclo_energia_para_decimal:
 	POP R0								; Restaura o valor de R0
 	RET
 
-; **************************************	
-; *				  Nave    	 		   *
-; **************************************	
-
-; *
-; * MOVER_NAVE_ESQUERDA - Trata o movimento da nave para a esquerda
-; *
-mover_nave_esquerda:
-    PUSH R4								; Guarda todos os registos utilizados
-    PUSH R2
-	MOV	R4, MIN_COLUNA          		; Guarda a Coluna do Limite Esquerdo em R4
-	MOV R2, [POSIÇAO_NAVE]      		; Vai buscar a Coluna onde a Nave se encontra
-	CMP	R2, R4                  		; Verifica se a nave se encontra na coluna limite
-	JLE	fim_movimento_esquerda  		; Se sim, não se pode mover    
-	MOV R4, -1                  		; Indica o sentido do movimento
-    CALL inicio_apaga_nave      		; Chama a rotina que apaga a Nave
-    CALL desenha_col_offset   			; Chama a rotina que desenha da Nave
-	CALL inicio_ciclo_atraso			; Atrasa a execução do próximo comando, tornando o movimento mais fluido
-	
-fim_movimento_esquerda:
-    POP R2								; Repõe todos os registos utilizados
-    POP R4
-    RET
-
-; *
-; * MOVER_NAVE_DIREITA - Trata o movimento da nava para a direita
-; *
-mover_nave_direita:	
-    PUSH R6
-    PUSH R5								; Guarda todos os registos utilizados
-	PUSH R4	
-    PUSH R2
-	MOV	R6, [DEF_NAVE+2]				; Obtém a largura da nave (2º elemento da tabela DEF_NAVE)
-	MOV R2, [POSIÇAO_NAVE]   			; Vai buscar a Linha onde a Nave se encontra
-	ADD R6, R2                 			; Obtém a posiçao da última coluna da nave
-	MOV	R5, MAX_COLUNA					; Obtem ultima coluna à direita do ecrãua i
-	CMP	R6, R5							; Verifica se a ultima coluna da nave ja se encontra na Coluna Limite Direito
-	JGT	fim_movimento_direita   		; Caso a nave já ocupe a ultima coluna, não se move 
-    MOV R4, 1                  			; Indica o sentido do movimento
-    CALL inicio_apaga_nave      		; Chama a rotina que apaga a nave
-	CALL desenha_col_offset   			; Chama a rotina que desenha a nave
-	CALL inicio_ciclo_atraso			; Atrasa a execução do próximo comando, tornando o movimento mais fluido
-
-fim_movimento_direita:
-    POP R2
-	POP R4								; Repõe todos os registos utilizados
-    POP R5
-    POP R6
-    RET
-
-
-; *
-; * INICIO_APAGA_NAVE - Apaga a nave, começando por obter a posição 
-; *  da nave e apagando-a linha a linha, num ciclo.
-; *
-inicio_apaga_nave:
-	PUSH R9	
-	PUSH R8	
-	PUSH R6								; Guarda todos os registos utilizados
-	PUSH R5
-	PUSH R3
-	MOV R3, 1							; Coloca o nº do ecrã em temp
-	MOV [SELECIONA_ECRÃ_N], R3		; Seleciona o Ecrã da nave
-    MOV R9, LINHA_NAVE					; obtém a linha onde começa a nave
-    MOV R8, [DEF_NAVE]					; obtém a altura da nave que serve como contador de linhas
-	MOV	R3, 0			        		; para apagar, a cor do pixel é 0
-	JMP apaga_linha_nave
-apaga_linha_nave:		
-	MOV	R6, [POSIÇAO_NAVE]				; cópia da coluna da nave
-	MOV	R5, [DEF_NAVE+2]				; obtém a largura da nave
-apaga_pixels_nave:       				
-	MOV  [DEFINE_LINHA], R9	    		; seleciona a linha
-	MOV  [DEFINE_COLUNA], R6			; seleciona a coluna
-	MOV  [DEFINE_PIXEL], R3	    		; altera a cor do pixel na linha e coluna selecionadas
-    ADD  R6, 1                  		; Passa à próxima coluna
-    SUB  R5, 1			        		; Reduz o contador de colunas por apagar
-    JNZ  apaga_pixels_nave				; Continua até percorrer toda a largura do objeto
-	ADD R9, 1                   		; Passa à linha seguinte
-    SUB R8, 1                   		; Reduz o contador das linhas por apagar
-	JNZ apaga_linha_nave        		; Vai apagar a próxima linha da nave
-	POP R3
-	POP R5
-	POP R6								; Repõe todos os registos utilizados
-	POP R8
-	POP R9
-    RET
-
 
 ; *
 ; * DESENHA_COL_OFFSET - Desenha a nave na posição (coluna) desejada, começando por 
@@ -615,8 +604,6 @@ desenha_col_offset:
 	PUSH R5								; Guarda todos os registos utilizados
     PUSH R4
 	PUSH R2
-	MOV R2, 1							; Coloca o nº do ecrã em R2
-	MOV [SELECIONA_ECRÃ_N], R2		; Seleciona o Ecrã da R2
 	ADD	R2, R4			        		; Altera a coluna consoante o sentido do movimento 
 	MOV [POSIÇAO_NAVE], R2				; Atualiza a coluna onde começa o desenho da nave
     MOV R9, LINHA_NAVE          		; Obtém a linha onde começa a nave
@@ -822,7 +809,7 @@ formata_coluna_ciclo:                   ; Para converter o valor da coluna lida
 
 
 
-PIXEL_CINZA EQU 0FF00H
+PIXEL_CINZA EQU 0AF00H
 TIPO_METEORO_MAU EQU 2 
 TIPO_METEORO_BOM EQU 4
 
@@ -911,11 +898,23 @@ decisoes_novo_meteoro_com_pin:
 	PUSH R10
 	MOV  R3, TEC_COL   					; Endereço do periférico das colunas
 	MOVB R0, [R3]      					; Ler do periférico de entrada (colunas)
-	SHR R0, 5
-	MOV R3, 8
-	MUL R0, R3
-	MOV R3, R11
-	ADD R3, 2
+	SHR R0, 5							; Isolar os bits 5 a 7
+	MOV R3, 8							
+	MUL R0, R3							; Para dar uma coluna multipla de 8 | R0 = Coluna 
+	MOV R10, 3							; R10 = Indices de meteoros						
+teste_posição_ideal:
+	MOV R4, R10 						; Copia o indice
+	SHL R4, 3							; Obtém a posição na tabela
+	MOV TEMP, TABELA_METEOROS
+	ADD R4, TEMP				; Obtém o endereço da tabela
+	MOV R4, [R4+4]						; Obtém a coluna a partir da tabela
+	CMP R0, R4							; Compara a coluna com a coluna do meteoro
+	JZ decisoes_novo_meteoro_com_pin
+	SUB R10, 1							; Decrementa o indice
+	JNN teste_posição_ideal
+inicialização_novo_meteoro:
+	MOV R3, R11							; R3 = Linha na tabela do meteoro que está a ser gerado
+	ADD R3, 2						
 	MOV R4, DEF_METEORO_1X1
 	MOV R10, TABELA_METEOROS
 	ADD R3, R10
@@ -1004,6 +1003,7 @@ ciclo_processo_meteoro:
 ;; *  obter a sua posição e desenhando-o, linha a linha, num ciclo.
 ;; * Argumentos: R4 - offset (descreve o sentido do movimento ou a não existência do mesmo)
 ; * 			 R11 - Valor a somar à tabela de meteoros para obter o tipo do meteoro a apagar 
+; * 			 R10 - Número do ecrã do meteoro a apagar
 ; * (ou seja, a linha da tabela que lhe corresponde)
 linha_seguinte:
 	PUSH R11
@@ -1015,9 +1015,8 @@ linha_seguinte:
 	PUSH R3 
 	PUSH R2
 	PUSH R1
-	PUSH R7
-	MOV R7, 0							; Coloca o nº do ecrã em temp
-	MOV [SELECIONA_ECRÃ_N], R7		; Seleciona o Ecrã dos Meteoros
+	PUSH R7						
+	MOV [SELECIONA_ECRÃ_N], R10			; Seleciona o Ecrã do Meteoro
 	ADD R11, 2							; valor a somar para obter tabela que define o meteoro a desenhar
 	MOV R2, R11							
 	ADD R2, 4							; valor a somar para obter linha do ecrã do meteoro
@@ -1100,48 +1099,9 @@ meteoro_fora_do_ecrã:
 
 
 
-; * APAGA_METEORO - Apaga o meteoro mau, começando por obter a sua posição 
-; *  da nave e apagando-o linha a linha, num ciclo.
-; * Argumentos: R11 - Valor a somar à tabela de meteoros para obter o tipo do meteoro a apagar 
-; * (ou seja, a linha da tabela que lhe corresponde).
+; * APAGA_METEORO - Apaga o meteoro mau, apagando o ecrã correspondente ao seu index
+; * Argumentos: R10 - Indice do meteoro.
 ; *				
-
-
 apaga_meteoro:
-	PUSH R9
-	PUSH R8
-	PUSH R7
-	PUSH R6								; Guarda todos os registos utilizados
-	PUSH R5
-	PUSH R3
-	PUSH R11
-	MOV R7, 0						; Coloca o nº do ecrã em temp
-	MOV [SELECIONA_ECRÃ_N], R7		; Seleciona o Ecrã dos Meteoros
-	ADD R11, 2							; valor a somar para obter tabela que define o meteoro a desenhar
-	MOV R7, TABELA_METEOROS
-	ADD R7, R11							; endereço da definição do desenho do meteoro
-	MOV R8, [R7]						; altura do meteoro
-	MOV R8, [R8]
-	MOV R9, [R7+4]						; 1ª linha onde se encontra o meteoro
-apaga_linha_meteoro:
-	MOV R6, [R7+2]						; Obtém a coluna onde começa o meteoro
-	MOV	R5, [R7]						; Obtém a largura do meteoro (contador de colunas)
-	MOV	R3, 0							; Para apagar, a cor do pixel é sempre 0
-apaga_pixels_meteoro:       			
-	MOV  [DEFINE_LINHA], R9				; Seleciona a linha 
-	MOV  [DEFINE_COLUNA], R6			; Seleciona a coluna
-	MOV  [DEFINE_PIXEL], R3				; Altera (para 0) a cor do pixel na linha e coluna selecionadas
-    ADD  R6, 1             				; Passa à próxima coluna
-    SUB  R5, 1							; Reduz o contador de colunas por apagar
-    JNZ  apaga_pixels_meteoro			; Continua até percorrer toda a largura do objeto
-	ADD R9, 1							; Avança para a linha seguinte
-    SUB R8, 1							; Reduz contador das linhas por apagar
-	JNZ apaga_linha_meteoro			; Vai apagar a próxima linha do meteoro
-	POP R11
-	POP R3
-	POP R5								
-	POP R6								; Repõe todos os registos
-	POP R7
-	POP R8
-	POP R9
+	MOV [APAGA_ECRÃ_N], R10		; Apaga o Ecrã do Meteoro
     RET
