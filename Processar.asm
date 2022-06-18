@@ -121,10 +121,10 @@ evento_mover_nave:
 	LOCK 0H   							; lock para mover nave
 
 evento_energia:
-	LOCK 0H								; lock para a energia
+	LOCK 0H								; LOCK usado para assinalar mudanças na energia do rover
 
 evento_morte:
-	LOCK 0H
+	LOCK 0H								; LOCK usado para assinalar quando o rover morreu
 
 tab_int:
 	WORD rot_int_2						; rotina de interrupção 2
