@@ -718,8 +718,8 @@
     "positionX" : 194,
     "positionY" : 84,
     "simGuiVisibleInSimulation" : true,
-    "simGuiXRelative" : 0,
-    "simGuiYRelative" : 25,
+    "simGuiXRelative" : 161,
+    "simGuiYRelative" : 38,
     "simGuiWidth" : 772,
     "simGuiHeight" : 808,
     "clockPeriod" : 200,
@@ -1432,8 +1432,8 @@
     "positionX" : 734,
     "positionY" : 456,
     "simGuiVisibleInSimulation" : true,
-    "simGuiXRelative" : 1246,
-    "simGuiYRelative" : 421,
+    "simGuiXRelative" : 1180,
+    "simGuiYRelative" : 416,
     "simGuiWidth" : 110,
     "simGuiHeight" : 140,
     "columns" : 4,
@@ -1512,9 +1512,39 @@
     "windowScreenWidthPixels" : 1024,
     "windowScreenHeightixels" : 512,
     "defaultPenColor" : 51063,
-    "image paths" : [ "assets/spaceSunset-bg.jpg", "assets/start_of_game.jpeg" ],
+    "image paths" : [ "assets/pato_de_jogo.png", "assets/start_of_game.png", "assets/pause_duck.jpg", "assets/pato_morto_energia.jpg", "assets/Pato e Pombo.jpg", "assets/PATO_TERMINADO.png" ],
     "sounds/videos settings" : [ {
-      "filePathName" : "assets/disparo.wav",
+      "filePathName" : "assets/colisao_pao.wav",
+      "relative sound volume" : 1.0,
+      "relative start time" : 0.0,
+      "relative stop time" : 1.0,
+      "playAsClip" : false
+    }, {
+      "filePathName" : "assets/partir_pao.wav",
+      "relative sound volume" : 1.0,
+      "relative start time" : 0.0,
+      "relative stop time" : 1.0,
+      "playAsClip" : false
+    }, {
+      "filePathName" : "assets/morte_pato.wav",
+      "relative sound volume" : 1.0,
+      "relative start time" : 0.0,
+      "relative stop time" : 1.0,
+      "playAsClip" : false
+    }, {
+      "filePathName" : "assets/morte_pombo.wav",
+      "relative sound volume" : 1.0,
+      "relative start time" : 0.0,
+      "relative stop time" : 1.0,
+      "playAsClip" : false
+    }, {
+      "filePathName" : "assets/disparo .wav",
+      "relative sound volume" : 1.0,
+      "relative start time" : 0.0,
+      "relative stop time" : 1.0,
+      "playAsClip" : false
+    }, {
+      "filePathName" : "assets/death_by_hunger.wav",
       "relative sound volume" : 1.0,
       "relative start time" : 0.0,
       "relative stop time" : 1.0,

@@ -28,7 +28,8 @@ TECLA_DIREITA			EQU 2H			; Tecla 2
 TECLA_METEORO_BAIXO		EQU 7H			; Tecla 7
 TECLA_START_GAME		EQU 0CH			; Tecla Pausa Jogo
 TECLA_PAUSA_JOGO		EQU 0DH			; Tecla Pausa Jogo
-TECLA_ACABA_JOGO		EQU 0EH			; Tecla Acabar o Jogo
+TECLA_FIM_JOGO			EQU 0EH			; Tecla Fim Jogo
+TECLA_ACABA_JOGO		EQU 10H			; Tecla Acabar o Jogo
 
 DEFINE_LINHA    		EQU 600AH      	; Endereço do comando para definir a linha
 DEFINE_COLUNA   		EQU 600CH      	; Endereço do comando para definir a coluna
@@ -44,7 +45,7 @@ SELECIONA_CENARIO_FUNDO EQU 6042H      	; Endereço do comando para selecionar u
 TOCA_SOM				EQU 605AH      	; Endereço do comando para tocar um som
 
 
-ATRASO					EQU	0FFFH		; Atraso para limitar a velocidade de movimento
+ATRASO					EQU	0020H		; Atraso para limitar a velocidade de movimento
 
 ENDEREÇO_DISPLAY		EQU 0A000H		; Endereço do display (POUT-2)
 ENERGIA_INICIAL			EQU	100			; Energia inicial da nave
@@ -74,33 +75,43 @@ COR_PIXEL_METEORO       EQU 0FF05H
 COR_PIXEL_MISSIL 		EQU 0FF38H	 	
 
 ; Cores dos pixeis da nave
-PIXEL_CINZA 			EQU 0A578H
-PIXEL_VERMELHO 			EQU	0FF00H
-PIXEL_LARANJA 			EQU	0FF50H
-PIXEL_LARANJA2 			EQU 0FFA5H
-PIXEL_AMARELO 			EQU	0FFF0H
-PIXEL_AMARELO2 			EQU 0FFFAH
-PIXEL_VERDE 			EQU	0FAF5H
-PIXEL_AZUL 				EQU	0F0AFH
-
+PIXEL_CINZA             EQU 0A578H
+PIXEL_CINZENTO_CLARO     EQU 0F888H
+PIXEL_CINZENTO_ESCURO    EQU 0F444H
+PIXEL_VERMELHO             EQU    0FF00H
+PIXEL_LARANJA             EQU    0FF50H
+PIXEL_LARANJA2             EQU 0FFA5H
+PIXEL_AMARELO             EQU    0FFF0H
+PIXEL_AMARELO2             EQU 0FFFAH
+PIXEL_VERDE             EQU    0FAF5H
+PIXEL_AZUL                 EQU    0F0AFH
+PIXEL_PRETO             EQU 0F000H
+PIXEL_ROSA                 EQU 0FF7BH
+PIXEL_ROXO                EQU 0F64DH
+PIXEL_CASTANHO_1        EQU 0F532H
+PIXEL_CASTANHO_2        EQU 0F632H
+PIXEL_CASTANHO_3        EQU 0F643H
+PIXEL_CASTANHO_4        EQU 0FB64H
 
 FUNDO_INICIO			EQU 1
-FUNDO_PAUSA				EQU 1
-FUNDO_GAME_OVER_METEORO	EQU 1
-FUNDO_GAME_OVER_ENERGIA	EQU 1
+FUNDO_PAUSA				EQU 2
+FUNDO_GAME_OVER_METEORO	EQU 4
+FUNDO_GAME_OVER_ENERGIA	EQU 3
 FUNDO_JOGO				EQU 0
+FUNDO_TERMINA_JOGO 		EQU 5
 
-BARULHO_BOM				EQU	0			; Som Bom
-BARULHO_EXPLOSÃO		EQU	0			; Som Explosão para quando a nave choca com Meteoro
 
 TIPO_METEORO_MAU 		EQU 2 
 TIPO_METEORO_BOM		EQU 4
 COLUNA 					EQU 0H
 LINHA				 	EQU 0H
 
-SOM_COLISÃO_BOM			EQU	0			; Som de colisão com meteoro bom 
-SOM_COLISÃO_MAU			EQU	0			; Som de colisão com meteoro mau 
-SOM_DISPARO_MÍSSIL		EQU	0			; Som de disparo de míssil 
+SOM_PATO_PAO			EQU	0			; Som Bom
+SOM_MISSIL_PAO			EQU	1			; Som de colisão com meteoro bom 
+SOM_PATO_POMBO			EQU	2			; Som Explosão para quando a nave choca com Meteoro
+SOM_MISSIL_POMBO		EQU	3			; Som de colisão com meteoro mau 
+SOM_DISPARO_MÍSSIL		EQU	4			; Som de disparo de míssil 
+SOM_MORTE_ENERGIA		EQU	5			; Som de disparo de míssil 
 
 ; +-------+
 ; | DADOS | 
@@ -200,12 +211,13 @@ interrupções:
 ENERGIA:
 	WORD ENERGIA_INICIAL 				; guarda a energia inicial da nave
 
-DEF_NAVE:								; tabela que define a nave 
-	WORD		ALTURA_NAVE, LARGURA_NAVE
-    WORD		0, 				0, 				PIXEL_AMARELO2, 0, 				0
-	WORD		PIXEL_VERMELHO, 0, 				PIXEL_AMARELO, 	0, 				PIXEL_AZUL
-    WORD		PIXEL_VERMELHO, PIXEL_LARANJA, 	PIXEL_AMARELO, 	PIXEL_VERDE, 	PIXEL_AZUL
-    WORD		0, 				PIXEL_LARANJA2, 0, 				PIXEL_VERDE, 	0
+DEF_NAVE:                                ; tabela que define a nave 
+    WORD        ALTURA_NAVE, LARGURA_NAVE
+    WORD        0,                 PIXEL_PRETO,   PIXEL_AMARELO, PIXEL_PRETO,   0
+    WORD        0,                 PIXEL_LARANJA, PIXEL_LARANJA, PIXEL_LARANJA, 0
+    WORD        PIXEL_AMARELO,     PIXEL_AMARELO, PIXEL_AMARELO, PIXEL_AMARELO, PIXEL_AMARELO
+    WORD        0,              PIXEL_AMARELO, PIXEL_AMARELO, PIXEL_AMARELO, 0
+
 
 POSIÇAO_NAVE:
 	WORD COLUNA_INICIAL_NAVE
@@ -230,51 +242,50 @@ DEF_METEORO_2X2:
 
 
 DEF_METEORO_3X3_BOM:
-	WORD		3, 3
-    WORD		0, 			PIXEL_AZUL, 0
-    WORD		PIXEL_AZUL, PIXEL_AZUL, PIXEL_AZUL
-    WORD		0, 			PIXEL_AZUL, 0
-	
+    WORD        3, 3
+    WORD        PIXEL_CASTANHO_1, PIXEL_CASTANHO_1, PIXEL_CASTANHO_1
+    WORD        PIXEL_CASTANHO_2, PIXEL_CASTANHO_3, PIXEL_CASTANHO_1
+    WORD        PIXEL_CASTANHO_2, PIXEL_CASTANHO_2, PIXEL_CASTANHO_1
+    
 DEF_METEORO_3X3_MAU:
-	WORD		3, 3
-    WORD		COR_PIXEL_METEORO, 	0, 					COR_PIXEL_METEORO
-    WORD		0, 					COR_PIXEL_METEORO,  0
-    WORD		COR_PIXEL_METEORO, 	0, 					COR_PIXEL_METEORO
+    WORD        3, 3
+    WORD        0, PIXEL_CINZENTO_CLARO, PIXEL_AMARELO
+    WORD        PIXEL_CINZENTO_ESCURO, PIXEL_CINZENTO_ESCURO, 0
+    WORD        0, PIXEL_ROSA, 0
 
 
 DEF_METEORO_4X4_BOM:
-	WORD		4, 4
-    WORD		0, 			PIXEL_AZUL, PIXEL_AZUL, 0
-    WORD		PIXEL_AZUL, PIXEL_AZUL, PIXEL_AZUL, PIXEL_AZUL
-    WORD		PIXEL_AZUL, PIXEL_AZUL, PIXEL_AZUL, PIXEL_AZUL
-    WORD		0, 			PIXEL_AZUL, PIXEL_AZUL, 0
-	
+    WORD        4, 4
+    WORD        0,             PIXEL_CASTANHO_2, PIXEL_CASTANHO_1, PIXEL_CASTANHO_1
+    WORD        PIXEL_CASTANHO_2, PIXEL_CASTANHO_3, PIXEL_CASTANHO_2, PIXEL_CASTANHO_1
+    WORD        PIXEL_CASTANHO_3, PIXEL_CASTANHO_4, PIXEL_CASTANHO_3, PIXEL_CASTANHO_1
+    WORD        PIXEL_CASTANHO_3, PIXEL_CASTANHO_3, PIXEL_CASTANHO_1, 0
+    
 DEF_METEORO_4X4_MAU:
-	WORD		4, 4
-    WORD		COR_PIXEL_METEORO, 	0, 					0, 					COR_PIXEL_METEORO
-    WORD		COR_PIXEL_METEORO, 	0, 					0, 					COR_PIXEL_METEORO
-    WORD		0, 					COR_PIXEL_METEORO,  COR_PIXEL_METEORO, 	0
-	WORD		COR_PIXEL_METEORO, 	0, 					0, 					COR_PIXEL_METEORO
+    WORD        4, 4
+    WORD        0, 0, PIXEL_CINZENTO_CLARO, PIXEL_AMARELO
+    WORD        PIXEL_CINZENTO_ESCURO, PIXEL_CINZENTO_ESCURO, PIXEL_CINZENTO_ESCURO, 0
+    WORD        0,                     PIXEL_CINZENTO_CLARO, PIXEL_CINZENTO_CLARO,     0
+    WORD        0, PIXEL_ROSA, 0, 0
 
 
-DEF_METEORO_5X5_BOM:						; tabela que define o meteoro bom 
-	WORD		5, 5
-    WORD		0, 				PIXEL_AZUL, 	PIXEL_AZUL,		PIXEL_AZUL, 		0
-	WORD		PIXEL_AZUL, 	PIXEL_AZUL, 	PIXEL_AZUL, 	PIXEL_AZUL, 		PIXEL_AZUL
-    WORD		0, 				0, 				PIXEL_AZUL, 	0, 	 				0
-   	WORD		PIXEL_AZUL, 	PIXEL_AZUL, 	PIXEL_AZUL, 	PIXEL_AZUL, 		PIXEL_AZUL
-    WORD		0, 				PIXEL_AZUL, 	PIXEL_AZUL, 	PIXEL_AZUL,   		0		
+DEF_METEORO_5X5_BOM:                        ; tabela que define o meteoro bom 
+    WORD        5, 5
+    WORD        0,                 PIXEL_CASTANHO_2, PIXEL_CASTANHO_2, PIXEL_CASTANHO_1, 0
+    WORD        PIXEL_CASTANHO_2, PIXEL_CASTANHO_3, PIXEL_CASTANHO_3, PIXEL_CASTANHO_2, PIXEL_CASTANHO_1
+    WORD        PIXEL_CASTANHO_4, PIXEL_CASTANHO_4, PIXEL_CASTANHO_4, PIXEL_CASTANHO_3, PIXEL_CASTANHO_1
+	WORD        PIXEL_CASTANHO_4, PIXEL_CASTANHO_4, PIXEL_CASTANHO_4, PIXEL_CASTANHO_3, PIXEL_CASTANHO_1
+    WORD        PIXEL_CASTANHO_4, PIXEL_CASTANHO_4, PIXEL_CASTANHO_4, PIXEL_CASTANHO_2, 0 		
 
 
-DEF_METEORO_5X5_MAU:						; tabela que define o meteoro mau 
-	WORD		5, 5
-    WORD		COR_PIXEL_METEORO, 	0, 					0, 					0, 					COR_PIXEL_METEORO
-	WORD		COR_PIXEL_METEORO, 	0, 					COR_PIXEL_METEORO, 	0, 					COR_PIXEL_METEORO
-    WORD		0, 					COR_PIXEL_METEORO, 	COR_PIXEL_METEORO, 	COR_PIXEL_METEORO, 	0
-   	WORD		COR_PIXEL_METEORO, 	0, 					COR_PIXEL_METEORO, 	0, 					COR_PIXEL_METEORO
-    WORD		COR_PIXEL_METEORO, 	0, 					0, 					0, 					COR_PIXEL_METEORO
-;colisao meteoro mau rover
-;criar meteoros
+DEF_METEORO_5X5_MAU:                        ; tabela que define o meteoro mau 
+    WORD        5, 5
+    WORD        0, 0, PIXEL_CINZENTO_CLARO, PIXEL_PRETO, 0
+    WORD        0, 0, PIXEL_CINZENTO_CLARO, PIXEL_AMARELO, PIXEL_AMARELO
+    WORD        PIXEL_CINZENTO_ESCURO, PIXEL_CINZENTO_ESCURO, PIXEL_CINZENTO_ESCURO, PIXEL_ROXO, 0
+	WORD        0, PIXEL_CINZENTO_ESCURO, PIXEL_CINZENTO_CLARO, PIXEL_CINZENTO_CLARO, 0
+    WORD        0, 0, PIXEL_ROSA, 0, 0
+
 
 
 TABELA_METEOROS:
@@ -291,22 +302,20 @@ TABELA_LINHAS_EVOLUÇÃO_METEOROS:
 
 
 DEF_EXPLOSÃO_METEORO_MAU:
-	WORD		5, 5
-    WORD		COR_PIXEL_METEORO, 	0, 					COR_PIXEL_METEORO, 			0, 					COR_PIXEL_METEORO
-    WORD		0, 					COR_PIXEL_METEORO, 	0, 							COR_PIXEL_METEORO, 	0
-	WORD		COR_PIXEL_METEORO, 	0, 					COR_PIXEL_METEORO, 			0, 					COR_PIXEL_METEORO
-    WORD		0, 					COR_PIXEL_METEORO, 	0, 							COR_PIXEL_METEORO, 	0
-   	WORD		COR_PIXEL_METEORO, 	0, 					COR_PIXEL_METEORO, 			0, 					COR_PIXEL_METEORO
-    
+    WORD        5, 5
+    WORD        PIXEL_VERMELHO,     0,                     PIXEL_VERMELHO,             0,                     PIXEL_VERMELHO
+    WORD        0,                     PIXEL_LARANJA,     0,                             PIXEL_LARANJA,     0
+    WORD        PIXEL_VERMELHO,     0,                     PIXEL_AMARELO,             0,                     PIXEL_VERMELHO
+    WORD        0,                     PIXEL_LARANJA,     0,                             PIXEL_LARANJA,     0
+    WORD        PIXEL_VERMELHO,     0,                     PIXEL_VERMELHO,             0,                     PIXEL_VERMELHO
 
 DEF_EXPLOSÃO_METEORO_BOM:
-	WORD		5, 5
-    WORD		PIXEL_AZUL, 	0, 					PIXEL_AZUL, 					0, 					PIXEL_AZUL
-	WORD		0, 	PIXEL_AZUL, 					0, 	PIXEL_AZUL, 					0
-    WORD		PIXEL_AZUL, 					0, 	PIXEL_AZUL, 	0, 	PIXEL_AZUL
-   	WORD		0, 	PIXEL_AZUL, 					0, 	PIXEL_AZUL, 					0
-    WORD		PIXEL_AZUL, 	0, 					PIXEL_AZUL, 					0, 					PIXEL_AZUL
-
+    WORD        5, 5
+    WORD        0,                 PIXEL_CASTANHO_2, 0, PIXEL_CASTANHO_1, 0
+    WORD        PIXEL_CASTANHO_2, 0, PIXEL_CASTANHO_3, 0, PIXEL_CASTANHO_1
+    WORD        0, PIXEL_CASTANHO_4, 0, PIXEL_CASTANHO_3, 0
+    WORD        PIXEL_CASTANHO_4, 0, PIXEL_CASTANHO_4, 0, PIXEL_CASTANHO_1
+    WORD        0, PIXEL_CASTANHO_4, 0, PIXEL_CASTANHO_2, 0  
 
 
 ; +--------+
@@ -377,12 +386,14 @@ mover_p_esquerda:						; Move a nave para a esquerda
 	CMP R3, TECLA_ESQUERDA
 	JNZ mover_p_direita
 	MOV R9, -1
+	CALL inicio_ciclo_atraso
 	MOV [evento_mover_nave] , R9
 	JMP tecla_é_continua
 mover_p_direita:
 	MOV R7, TECLA_DIREITA
 	CMP R3, R7
 	JNZ tecla_missil
+	CALL inicio_ciclo_atraso
 	MOV R9, 1
 	MOV [evento_mover_nave] , R9
 	JMP tecla_é_continua
@@ -394,10 +405,21 @@ tecla_missil:
 pausa_jogo:
 	MOV R7, TECLA_PAUSA_JOGO
 	CMP R3, R7
-	JNZ acaba_jogo
+	JNZ fim_jogo
 	MOV R4, 0
 	MOV [TECLA_CONTINUA], R4			; Indica ao teclado que a tecla é para ser pressionada 1 só vez
 	JMP inicio_cenário_de_pausa
+fim_jogo:
+	MOV R7, TECLA_FIM_JOGO
+	CMP R3, R7
+	JNZ acaba_jogo
+	MOV R7, FUNDO_TERMINA_JOGO
+	MOV [SELECIONA_CENARIO_FUNDO], R7	; Seleciona o cenário de fundo
+	MOV R7, 0
+	MOV [TECLA_CONTINUA], R7
+	MOV R7, 1
+	MOV [interrupt_stop], R7
+	JMP start_game
 acaba_jogo:
 	MOV R7, TECLA_ACABA_JOGO
 	CMP R3, R7
@@ -406,8 +428,6 @@ acaba_jogo:
 	MOV [TECLA_CONTINUA], R7
 	MOV R7, 1
 	MOV [interrupt_stop], R7
-	MOV R7, FUNDO_GAME_OVER_METEORO
-	MOV [SELECIONA_CENARIO_FUNDO], R7
 	JMP start_game
 nao_tecla:
 tecla_é_continua:
@@ -418,7 +438,6 @@ tecla_n_continua:
 	MOV R7, 0
 	MOV [TECLA_CONTINUA], R7
 	JMP espera_movimento
-
 inicio_cenário_de_pausa:
 	CALL esconde_ecrãs					; Esconde todos os ecrãs
 	MOV R4, 1
@@ -512,9 +531,6 @@ ver_colisões:
 	CALL colisões_nave				; Chama a rotina que verifica se há colisão
 	CMP R5, TIPO_METEORO_MAU		; Verifica se há colisão
 	JNZ ver_colisões				; Se não, continua a verificar
-colide:
-	MOV R5, 0
-	MOV [TOCA_SOM], R5
 fim_mover:
 	JMP loop_nave
 	
@@ -586,7 +602,7 @@ colisões_nave:
 	CMP R5, TIPO_METEORO_BOM
 	JNZ colisão_mau
 colisão_bom:
-	MOV R6, BARULHO_BOM					; Põe o index do barulho bom em R6
+	MOV R6, SOM_PATO_PAO					; Põe o index do barulho bom em R6
 	MOV [TOCA_SOM], R6					; Toca o barulho bom
 	MOV R6, 1							; Muda o valor de R6 para 1
 	MOV [evento_energia], R6			; Aumenta a energia
@@ -596,12 +612,14 @@ colisão_bom:
 	CALL decisões_novo_meteoro
 	JMP fim_colisões_nave
 colisão_mau:
-	MOV R6, BARULHO_EXPLOSÃO			; Põe o index do barulho bom em R6
+	MOV R6, SOM_PATO_POMBO			; Põe o index do barulho bom em R6
 	MOV [TOCA_SOM], R6					; Toca o barulho bom
 	MOV R6, 2
 	MOV [interrupções], R6
 	MOV R6, TECLA_ACABA_JOGO			; Muda o valor de R6 para 1
 	MOV [TECLA_CARREGADA], R6			; Aumenta a energia
+	MOV R7, FUNDO_GAME_OVER_METEORO     ; Imagem de Game over
+	MOV [SELECIONA_CENARIO_FUNDO], R7	; Seleciona a imagem de Game over
 	CALL apaga_meteoro
 	MOV R6, 1
 	MOV [interrupt_stop], R6
@@ -781,15 +799,16 @@ espera_nao_tecla:						; Neste ciclo, espera-se até NENHUMA tecla estar premida
 ; * Argumentos:	R11 - valor que define o atraso
 ; *
 ; *
+
 inicio_ciclo_atraso:
 	PUSH R11
 	MOV R11, ATRASO							
 ciclo_atraso:							; Ciclo usado para "fazer tempo" entre movimentos sucessivos de naves e meteoros
-	YIELD
-	SUB	R11, 1								
+	SUB	R11, 1
+	YIELD								
 	JNZ	ciclo_atraso					; Espera até que, por subtrações sucessivas, R11 fique a 0
 	POP R11
-	RET 
+	RET
 
 
 
@@ -854,6 +873,10 @@ subtrai_energia:
 	MOV [ENDEREÇO_DISPLAY], R4			; Coloca o valor inicial no display
 	CMP R0, 0
 	JNZ exit_diminui_energia_display
+	MOV R0, SOM_MORTE_ENERGIA 			; Som quando pato morre por energia
+	MOV [TOCA_SOM], R0					; Som quando nave morre por energia
+	MOV R0, FUNDO_GAME_OVER_ENERGIA
+	MOV [SELECIONA_CENARIO_FUNDO], R0 
 	MOV R0, TECLA_ACABA_JOGO
 	MOV [TECLA_CARREGADA], R0
 exit_diminui_energia_display: 
@@ -1265,7 +1288,7 @@ houve_colisão:
 	MOV R5, [R6]						; Obtém o tipo do meteoro
 	CMP R5, TIPO_METEORO_MAU			; Compara o tipo do meteoro com o tipo de meteoro mau
 	JZ colisão_meteoro_mau
-	MOV R0, SOM_COLISÃO_BOM				; Som colisão com um meteoro bom
+	MOV R0, SOM_MISSIL_PAO				; Som colisão com um meteoro bom
 	MOV [TOCA_SOM], R0
 	MOV R5, DEF_EXPLOSÃO_METEORO_BOM	; Aponta para a definição da explosão do meteoro bom
 rot_destruição:
@@ -1281,7 +1304,7 @@ rot_destruição:
 	JMP inicio_processo_mísseis
 colisão_meteoro_mau:
 	MOV R5, DEF_EXPLOSÃO_METEORO_MAU	; Aponta para a definição da explosão do meteoro mau
-	MOV R0, SOM_COLISÃO_MAU				; Som colisão com um meteoro mau
+	MOV R0, SOM_MISSIL_POMBO				; Som colisão com um meteoro mau
 	MOV [TOCA_SOM], R0
 	MOV R0, 1
 	MOV [evento_energia], R0			; Desbloqueia o evento de variar a energia (aumenta)
