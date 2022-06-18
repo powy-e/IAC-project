@@ -448,6 +448,7 @@ tecla_n_continua:
 	JMP espera_movimento
 
 inicio_cenário_de_pausa:
+	CALL esconde_ecrãs					; Esconde todos os ecrãs
 	MOV R4, 1
 	MOV [interrupt_stop], R4			; Desliga as interrupções
 	MOV R4, FUNDO_PAUSA					; Cenário de fundo Pausa
@@ -460,6 +461,7 @@ cenário_de_pausa:
 	JNZ cenário_de_pausa				; Se não for, então volta ao loop
 	MOV R7, FUNDO_JOGO					; Cenário de fundo Pausa
 	MOV [SELECIONA_CENARIO_FUNDO], R7	; Seleciona o cenário de fundo
+	CALL mostra_ecrãs					; Mostra todos os ecrãs
 	MOV [interrupt_stop], R4			; Liga as interrupções
 	JMP espera_movimento
 
