@@ -28,6 +28,7 @@ TECLA_DIREITA			EQU 2H			; Tecla 2
 TECLA_METEORO_BAIXO		EQU 7H			; Tecla 7
 TECLA_AUMENTA_DISPLAY 	EQU 0DH			; Tecla D
 TECLA_DIMINUI_DISPLAY	EQU 0CH			; Tecla C
+TECLA_ACABA_JOGO		EQU 10H			; Tecla Acabar o Jogo
 
 DEFINE_LINHA    		EQU 600AH      	; Endereço do comando para definir a linha
 DEFINE_COLUNA   		EQU 600CH      	; Endereço do comando para definir a coluna
@@ -78,6 +79,8 @@ PIXEL_AMARELO2 			EQU 0FFFAH
 PIXEL_VERDE 			EQU	0FAF5H
 PIXEL_AZUL 				EQU	0F0AFH
 
+BARULHO_BOM				EQU	0			; Som Bom
+BARULHO_EXPLOSÃO		EQU	0			; Som Explosão para quando a nave choca com Meteoro
 
 ; +-------+
 ; | DADOS | 
@@ -90,6 +93,8 @@ SP_inicial:								; este é o endereço (1400H) com que o SP deve ser
 										; inicializado. O 1.º end. de retorno será 
 										; armazenado em 13FEH (1400H-2)
 
+	STACK 200H							; espaço reservado para a pilha
+SP_interrupt:
 	STACK 200H							; espaço reservado para a pilha
 SP_displays:
 	STACK 200H							; espaço reservado para a pilha
@@ -143,6 +148,10 @@ TECLA_CONTINUA:
 	LOCK 0								; LOCK usado para o teclado comunicar aos restantes processos que tecla detetou,
 										; enquanto a tecla estiver carregada
 
+interrupções:
+	WORD 0								; LOCK usado para o teclado comunicar aos restantes processos que tecla detetou,
+										; enquanto a tecla estiver carregada
+
 
 
 ENERGIA:
@@ -157,6 +166,9 @@ DEF_NAVE:								; tabela que define a nave
 
 POSIÇAO_NAVE:
 	WORD COLUNA_INICIAL_NAVE
+
+interrupt_stop:
+	WORD 0
 
 ;DEF_METEORO_MAU:						; tabela que define o meteoro mau 
 ;	WORD		ALTURA_METEORO_MAU, LARGURA_METEORO_MAU
@@ -182,22 +194,26 @@ inicio:
 	MOV  SP, SP_inicial					; Inicializa o SP (stack pointer)
 	MOV  BTE, tab_int					; Inicializa a tabela de interrupções
 
-	EI0 								; Ativa a interrupção 0
-	EI1 								; Ativa a interrupção 1
-    EI
 
 	
 	CALL processo_displays				; Processo de display
 	CALL processo_nave
 	CALL processo_meteoro
+	CALL processo_interrupt
 	;CALL misseis
 	MOV  R11, NUMERO_LINHAS				; Inicializa R11 com o valor da primeira linha a ser lida
 loop_teclados:							; Loop que chama o processo de teclado
-	CMP R11, 0							; Verifica se a linha é a ultima
-	JZ espera_movimento					; Se for, então sai do loop
 	SUB R11, 1							; Decrementa pois a linha é de 0 a 3
 	CALL teclado						; Cria uma instância do teclado
-	JMP loop_teclados
+	CMP R11, 0							; Verifica se a linha é a ultima
+	JNZ loop_teclados					; Se não for, então volta ao loop
+
+;	EI0 								; Ativa a interrupção 0
+;	EI1 								; Ativa a interrupção 1
+;   EI
+
+	MOV R7, 1
+	MOV [interrupções], R7
 
 espera_movimento:						; Espera até o teclado ler algo
 	MOV R3, [TECLA_CARREGADA]
@@ -224,9 +240,16 @@ display_p_baixo:
 display_p_cima:
 	MOV R7, TECLA_AUMENTA_DISPLAY
 	CMP R3, R7
-	JNZ nao_tecla
+	JNZ acaba_jogo
 	MOV R9, 1
 	MOV [evento_energia] , R9
+	JMP tecla_n_continua
+acaba_jogo:
+	MOV R7, TECLA_ACABA_JOGO
+	CMP R3, R7
+	JNZ nao_tecla
+	MOV R7, 2
+	MOV [interrupções], R7
 	JMP tecla_n_continua
 nao_tecla:
 tecla_é_continua:
@@ -370,7 +393,7 @@ colisões_nave:
 	PUSH R4
 	MOV	R5, LINHA_NAVE					; R5 recebe a Linha onde a nave  encontra
 	MOV R4, [R11 + 6]					; R4 recebe a Linha onde se encontra o Meteoro
-	MOV R3, [R11 +2]					; Endereço da Tabela que define Meteoro
+	MOV R3, [R11 + 2]					; Endereço da Tabela que define Meteoro
 	MOV R3, [R3]						; R3 recebe a Altura/Largura do Meteoro (São sempre iguais)
 	ADD R4, R3							; Adiciona a Altura do Meteoro à Linha do Meteoro
 	CMP R4, R5							; Verifica se a nave se encontra abaixo da linha do meteoro
@@ -384,7 +407,7 @@ colisões_nave:
 	SUB R4, R3							; Subtrai a largura do meteoro à coluna do meteoro
 	CMP R5, R4							; Verifica se a direita da nave se encontra à direita da coluna esquerda do meteoro
 	JLE não_colide						; Se não, não há colisão
-	MOV R5, [R11]						; Se há colisão, R5 recebe 1
+	MOV R5, [R11]						; Se há colisão, R5 recebe o tipo de meteoro
 	JMP fim_colisões_nave
 não_colide:
 	MOV R5, 0							; Se não há colisão, R5 recebe 0
@@ -395,29 +418,66 @@ fim_colisões_nave:
 	
 rot_int_2:
 	PUSH R0
-	MOV  R0, -1
-	MOV  [evento_energia], R0			; Carrega o valor da variável evento_energia
+	MOV R0, [interrupt_stop]
+	CMP R0, 1
+	JZ rot_int_2_fim
+	MOV R0, -1
+	MOV [evento_energia], R0			; Carrega o valor da variável evento_energia
+rot_int_2_fim:
 	POP R0
 	RFE
 
 
 rot_int_0:								;meteoro
+	PUSH R0
+	MOV R0, [interrupt_stop]
+	CMP R0, 1
+	JZ rot_int_0_fim
 	MOV  [evento_mover_meteoros], R0			; desbloqueia o evento de mover meteoros (R0 não é importante)
+rot_int_0_fim:
+	POP R0
 	RFE
 
+
+PROCESS SP_interrupt
+processo_interrupt:
+	WAIT
+	MOV R1, [interrupções]
+	CMP R1, 0
+	JZ processo_interrupt
+	CMP R1, 2
+	JZ desligar_int
+ligar_int:
+	EI0
+	EI1
+	EI
+	JMP restart_interrupt
+desligar_int:
+	DI
+	DI0
+	DI1
+restart_interrupt:	
+	MOV R0, 0
+	MOV [interrupções], R0
+	JMP processo_interrupt
 
 PROCESS SP_displays
 processo_displays:
 	CALL inicia_energia_display			; Inicia a energia e o display
 loop_displays:
+	;MOV R1, [interrupt_stop]
+	;CMP R1, 0
+	;JNZ bloqueia_displays
 	MOV R0 , [evento_energia]			; Carrega o valor da variável evento_energia
+	CMP R0, 0
 	JLT diminuir_displays
 	CALL aumenta_energia_display
 	JMP loop_displays
 diminuir_displays:
 	CALL diminui_energia_display
 	JMP loop_displays
-
+;bloqueia_displays:
+;	RET
 
 
 ;PROCESS SP_inicial_teclado_1
@@ -906,6 +966,7 @@ decisoes_novo_meteoro_com_pin:
 	PUSH R4
 	PUSH R11
 	PUSH R10
+inicio_decisões:
 	MOV  R3, TEC_COL   					; Endereço do periférico das colunas
 	MOVB R0, [R3]      					; Ler do periférico de entrada (colunas)
 	SHR R0, 5							; Isolar os bits 5 a 7
@@ -919,7 +980,7 @@ teste_posição_ideal:
 	ADD R4, TEMP				; Obtém o endereço da tabela
 	MOV R4, [R4+4]						; Obtém a coluna a partir da tabela
 	CMP R0, R4							; Compara a coluna com a coluna do meteoro
-	JZ decisoes_novo_meteoro_com_pin
+	JZ inicio_decisões
 	SUB R10, 1							; Decrementa o indice
 	JNN teste_posição_ideal
 inicialização_novo_meteoro:
@@ -958,6 +1019,7 @@ fim_decisões_novo_meteoro:
 	POP R4
 	POP R0
 	POP R3
+	RET
 
 
 
@@ -984,6 +1046,7 @@ fim_decisões_novo_meteoro:
 
 PROCESS SP_Meteoro
 processo_meteoro:	
+	;MOV R6, [interrupções]
 inicialização_processo_meteoro:
 	MOV R4, 0 							; desenhar pela primeira vez sem movimentar
 	MOV R10, 3							; Número de meteoros a desenhar -1
@@ -995,22 +1058,41 @@ inicio_ciclo_processo_meteoro:
 	MOV R10, 3							; Número de meteoros a desenhar -1 | R10 vai ser o Index do meteoro
 ciclo_processo_meteoro:
 	MOV R11, R10
-	SHL R11, 3										; valor a somar para obter linha da tabela correspondente ao meteoro
+	SHL R11, 3							; valor a somar para obter linha da tabela correspondente ao meteoro
 	CALL apaga_meteoro
 	CALL linha_seguinte
 	MOV R5, TABELA_METEOROS
 	ADD R11, R5
 	CALL colisões_nave
 	CMP R5, 0							
-	JNZ ohohoh									; caso colida
+	JZ continuação_ciclo							; caso colida
+ohohoh:
+	CMP R5, TIPO_METEORO_BOM
+	JNZ colisão_mau
+colisão_bom:
+	MOV R6, BARULHO_BOM					; Põe o index do barulho bom em R6
+	MOV [TOCA_SOM], R6					; Toca o barulho bom
+	MOV R6, 1							; Muda o valor de R6 para 1
+	MOV [evento_energia],R6				; Aumenta a energia
+	;CALL decisoes_novo_meteoro_com_pin
+	CALL apaga_meteoro
+	JMP continuação_ciclo
+colisão_mau:
+	MOV R6, BARULHO_EXPLOSÃO			; Põe o index do barulho bom em R6
+	MOV [TOCA_SOM], R6					; Toca o barulho bom
+	MOV R6, 2
+	MOV [interrupções], R6
+	;MOV R6, TECLA_ACABA_JOGO			; Muda o valor de R6 para 1
+	;MOV [TECLA_CARREGADA], R6			; Aumenta a energia
+	CALL apaga_meteoro
+	MOV R6, 1
+	MOV [interrupt_stop], R6
+	;RET
+	JMP inicio_ciclo_processo_meteoro	;PROVISORIO, SHOULD BE FINISH GAME INSTEAD
+continuação_ciclo:
 	SUB R10, 1
 	JN inicio_ciclo_processo_meteoro
 	JMP ciclo_processo_meteoro
-ohohoh:
-	MOV R5, 0
-	MOV [TOCA_SOM], R5
-	CALL apaga_meteoro
-	JMP inicio_ciclo_processo_meteoro
 
 
 
