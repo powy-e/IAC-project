@@ -1227,8 +1227,10 @@ colisão_bom:
 	MOV [TOCA_SOM], R6					; Toca o barulho bom
 	MOV R6, 1							; Muda o valor de R6 para 1
 	MOV [evento_energia],R6				; Aumenta a energia
-	;CALL decisoes_novo_meteoro_com_pin
 	CALL apaga_meteoro
+	MOV R5, TABELA_METEOROS					
+	SUB R11, R5 						; Argumento para decisoes_novo_meteoro_com_pin
+	CALL decisoes_novo_meteoro_com_pin
 	JMP continuação_ciclo
 colisão_mau:
 	MOV R6, BARULHO_EXPLOSÃO			; Põe o index do barulho bom em R6
