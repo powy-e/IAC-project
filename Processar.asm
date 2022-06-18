@@ -28,6 +28,8 @@ TECLA_DIREITA			EQU 2H			; Tecla 2
 TECLA_METEORO_BAIXO		EQU 7H			; Tecla 7
 TECLA_AUMENTA_DISPLAY 	EQU 0DH			; Tecla D
 TECLA_DIMINUI_DISPLAY	EQU 0CH			; Tecla C
+TECLA_START_GAME		EQU 0CH			; Tecla Pausa Jogo
+TECLA_PAUSA_JOGO		EQU 0FH			; Tecla Pausa Jogo
 TECLA_ACABA_JOGO		EQU 10H			; Tecla Acabar o Jogo
 
 DEFINE_LINHA    		EQU 600AH      	; Endereço do comando para definir a linha
@@ -38,6 +40,8 @@ APAGA_AVISO     		EQU 6040H      	; Endereço do comando para apagar o aviso de 
 APAGA_ECRÃS	 			EQU 6002H      	; Endereço do comando para apagar todos os pixels já desenhados
 APAGA_ECRÃ_N	 		EQU 6000H      	; Endereço do comando para apagar todos os pixels já desenhados
 SELECIONA_ECRÃ_N		EQU 6004H		; Endereço do comando para selecionar o ecrã
+MOSTRA_ECRÃ_N			EQU 6006H		; Endereço do comando para selecionar o ecrã
+ESCONDE_ECRÃ_N			EQU 6008H		; Endereço do comando para selecionar o ecrã
 SELECIONA_CENARIO_FUNDO EQU 6042H      	; Endereço do comando para selecionar uma imagem de fundo
 TOCA_SOM				EQU 605AH      	; Endereço do comando para tocar um som
 
@@ -83,7 +87,8 @@ PIXEL_AZUL 				EQU	0F0AFH
 
 FUNDO_INICIO			EQU 1
 FUNDO_PAUSA				EQU 1
-FUNDO_GAME_OVER			EQU 1
+FUNDO_GAME_OVER_METEORO	EQU 1
+FUNDO_GAME_OVER_ENERGIA	EQU 1
 FUNDO_JOGO				EQU 0
 
 BARULHO_BOM				EQU	0			; Som Bom
@@ -320,12 +325,12 @@ DEF_EXPLOSÃO_METEORO_BOM:
 ; +--------+
 PLACE   0                     			; o código tem de começar em 0000H
 inicio:
+	MOV  SP, SP_inicial					; Inicializa o SP (stack pointer)
+	MOV  BTE, tab_int					; Inicializa a tabela de interrupções
 	MOV  [APAGA_AVISO], R1	    		; Apaga o aviso de nenhum cenário selecionado 
     MOV  [APAGA_ECRÃS], R1	    		; Apaga todos os pixels já desenhados 
 	MOV	 R1, FUNDO_INICIO			    ; Cenário de fundo inicial
     MOV  [SELECIONA_CENARIO_FUNDO], R1	; Seleciona o cenário de fundo
-	MOV  SP, SP_inicial					; Inicializa o SP (stack pointer)
-	MOV  BTE, tab_int					; Inicializa a tabela de interrupções
 
 
 	MOV  R11, NUMERO_LINHAS				; Inicializa R11 com o valor da primeira linha a ser lida
@@ -335,42 +340,47 @@ loop_teclados:							; Loop que chama o processo de teclado
 	CMP R11, 0							; Verifica se a linha é a ultima
 	JNZ loop_teclados					; Se não for, então volta ao loop
 
-start_game:
-	MOV R4, TECLA_DIMINUI_DISPLAY
-	MOV R3, [TECLA_CARREGADA]
-	MOV R7, 0
-	MOV [TECLA_CONTINUA], R7
-	CMP R3, R4
-	JNZ start_game
 
-	MOV  [APAGA_AVISO], R1	    		; Apaga o aviso de nenhum cenário selecionado 
-    MOV  [APAGA_ECRÃS], R1	    		; Apaga todos os pixels já desenhados 
+CALL processo_displays				; Processo com lógica dos displays
+	CALL processo_nave					; Processo com lógica da nave
+	CALL processo_meteoro				; Processo com lógica dos meteoros
+	CALL processo_interrupt				; Processo de que gere as interrupções
+	CALL processo_misseis				; Processo com lógica dos misseis
+	;CALL processo_pausa
+	;CALL processo_morte
+	;CALL misseis
+
+	MOV	 R1, FUNDO_INICIO			    ; Cenário de fundo inicial
+    MOV  [SELECIONA_CENARIO_FUNDO], R1	; Seleciona o cenário de fundo
+start_game:
+	CALL esconde_ecrãs					; Esconde todos os ecrãs
+	MOV R3, [TECLA_CARREGADA]			; Fica no Lock até uma tecla ser clicada
+	MOV R7, 0
+	MOV [TECLA_CONTINUA], R7			; Indica ao teclado que a tecla é para ser pressionada 1 só vez
+	MOV R4, TECLA_START_GAME			
+	CMP R3, R4							; Verifica se a tecla clicada é a START_GAME
+	JNZ start_game						; Se não for, então volta ao loop
+
+	;MOV  [APAGA_AVISO], R1	    		; Apaga o aviso de nenhum cenário selecionado 
 	MOV R1, FUNDO_JOGO					; Cenário de fundo Jogo
 	MOV [SELECIONA_CENARIO_FUNDO], R1	; Seleciona o cenário de fundo
+	CALL recomeçar_meteoros
+	CALL mostra_ecrãs					; Mostra todos os ecrãs
 
 
-	CALL processo_displays				; Processo de display
-	CALL processo_nave
-	CALL processo_meteoro
-	CALL processo_interrupt
-	CALL processo_misseis
-	CALL processo_pausa
-	CALL processo_morte
-	;CALL misseis
 
 
 ;	EI0 								; Ativa a interrupção 0
 ;	EI1 								; Ativa a interrupção 1
 ;   EI
 
+	MOV R7, 0
+	MOV [interrupt_stop], R7				; Liga as interrupções
 	MOV R7, 1
-	MOV [interrupções], R7
-
+	MOV [interrupções], R7				; Liga as interrupções
 espera_movimento:						; Espera até o teclado ler algo
-	MOV R3, [TECLA_CARREGADA]
-	MOV R4, [WORD_GAMESTATE_PAUSED]		; Maybe não preciso
-	CMP R4, 1
-	JZ tecla_n_continua
+	MOV R3, [TECLA_CARREGADA]			; Fica no Lock até a tecla ser pressionada
+
 mover_p_esquerda:						; Move a nave para a esquerda
 	CMP R3, TECLA_ESQUERDA
 	JNZ mover_p_direita
@@ -409,15 +419,24 @@ suspender_jogo:
 tecla_missil:
 	MOV R7, 1
 	CMP R3, R7
-	JNZ acaba_jogo
+	JNZ pausa_jogo
 	MOV [evento_disparar_míssil] , R9
+pausa_jogo:
+	MOV R7, TECLA_PAUSA_JOGO
+	CMP R3, R7
+	JNZ acaba_jogo
+	MOV R4, 0
+	MOV [TECLA_CONTINUA], R4			; Indica ao teclado que a tecla é para ser pressionada 1 só vez
+	JMP inicio_cenário_de_pausa
 acaba_jogo:
 	MOV R7, TECLA_ACABA_JOGO
 	CMP R3, R7
 	JNZ nao_tecla
-	MOV R7, 2
-	MOV [interrupções], R7
-	JMP tecla_n_continua
+	MOV R7, 1
+	MOV [interrupt_stop], R7
+	MOV R7, FUNDO_GAME_OVER_METEORO
+	MOV [SELECIONA_CENARIO_FUNDO], R7
+	JMP start_game
 nao_tecla:
 tecla_é_continua:
 	MOV R7, 1
@@ -428,60 +447,48 @@ tecla_n_continua:
 	MOV [TECLA_CONTINUA], R7
 	JMP espera_movimento
 
-
-
-PROCESS SP_inicial_pausa
-processo_pausa:
-	MOV R0, [LOCK_GAMESTATE_PAUSED]		; Espera até o jogo parar
-	MOV R1, 1
-	CMP R0, 1
-	JNZ processo_pausa
-pause:
-	DI0
-	DI
-	MOV [APAGA_AVISO], R1
-	MOV R1, FUNDO_PAUSA
-	MOV [SELECIONA_CENARIO_FUNDO], R1
-
-resume:
-	MOV R5, [TECLA_CARREGADA]
-	MOV R4, TECLA_AUMENTA_DISPLAY
-	CMP R5, R4
-	JNZ resume
-	MOV R11, 0
-	MOV [LOCK_GAMESTATE_PAUSED], R11
-	MOV [WORD_GAMESTATE_PAUSED], R11
-	EI0
-	EI
-	MOV [APAGA_AVISO], R1
-	MOV R1, FUNDO_JOGO
-	MOV [SELECIONA_CENARIO_FUNDO], R1
-	JMP processo_pausa
-
-PROCESS SP_inicial_morte
-processo_morte:
-	MOV R0, [evento_morte]
-	CMP R0, 1
-	JNZ processo_morte
-
-morte:
-	DI0
-	DI
-	MOV [APAGA_ECRÃS], R1
-	MOV R1, FUNDO_GAME_OVER
-	MOV [SELECIONA_CENARIO_FUNDO], R1
-	JMP morte
+inicio_cenário_de_pausa:
+	MOV R4, 1
+	MOV [interrupt_stop], R4			; Desliga as interrupções
+	MOV R4, FUNDO_PAUSA					; Cenário de fundo Pausa
+	MOV [SELECIONA_CENARIO_FUNDO], R4	; Seleciona o cenário de fundo
+	MOV R4, 0							; Tecla Não Continua
+cenário_de_pausa:
+	MOV R3, [TECLA_CARREGADA]			; Fica no Lock até uma tecla ser clicada
+	MOV [TECLA_CONTINUA], R4			; Indica ao teclado que a tecla é para ser pressionada 1 só vez (R4 = 0)
+	CMP R3, R7							; Verifica se a tecla clicada é a START_GAME
+	JNZ cenário_de_pausa				; Se não for, então volta ao loop
+	MOV R7, FUNDO_JOGO					; Cenário de fundo Pausa
+	MOV [SELECIONA_CENARIO_FUNDO], R7	; Seleciona o cenário de fundo
+	MOV [interrupt_stop], R4			; Liga as interrupções
+	JMP espera_movimento
 
 
 
 
 
+esconde_ecrãs:						; Esconde os ecrãs
+	PUSH R1							; Guarda o valor de R1
+	MOV R1, 5						; Número de ecrãs a esconder
+ciclo_esconde_ecrãs:
+	SUB R1,1						; Decrementa o index do ecrã a esconder
+	MOV [ESCONDE_ECRÃ_N], R1		; Esconde o ecrã
+	CMP R1, 0						; Verifica se o index do ecrã a esconder é 0
+	JNZ ciclo_esconde_ecrãs			; Se não for, então volta ao loop
+	POP R1							; Restaura o valor de R1
+	RET 
 
 
-
-
-
-
+mostra_ecrãs:						; Esconde os ecrãs
+	PUSH R1							; Guarda o valor de R1
+	MOV R1, 5						; Número de ecrãs a esconder
+ciclo_mostra_ecrãs:
+	SUB R1,1						; Decrementa o index do ecrã a mostrar
+	MOV [MOSTRA_ECRÃ_N], R1			; Mostra o ecrã
+	CMP R1, 0						; Verifica se o index do ecrã a mostrar é 0
+	JNZ ciclo_mostra_ecrãs			; Se não for, então volta ao loop
+	POP R1							; Restaura o valor de R1
+	RET 
 
 
 
@@ -546,7 +553,7 @@ ver_colisões:
 	ADD R11, R5						; R11 recebe Linha da Tabela de Meteoros
 	CALL colisões_nave				; Chama a rotina que verifica se há colisão
 	CMP R5, 0						; Verifica se há colisão
-	JZ ver_colisões				; Se não, continua a verificar
+	JZ ver_colisões					; Se não, continua a verificar
 colide:
 	MOV R5, 0
 	MOV [TOCA_SOM], R5
@@ -624,18 +631,8 @@ fim_colisões_nave:
 	POP R3
 	RET
 	
-rot_int_2:
-	PUSH R0
-	MOV R0, [interrupt_stop]
-	CMP R0, 1
-	JZ rot_int_2_fim
-	MOV R0, -1
-	MOV [evento_energia], R0			; Carrega o valor da variável evento_energia
-rot_int_2_fim:
-	POP R0
-	RFE
 
-
+; Rotina de interrupção relativa ao pino 0 (Meteoros)
 rot_int_0:								;meteoro
 	PUSH R0
 	MOV R0, [interrupt_stop]
@@ -646,11 +643,28 @@ rot_int_0_fim:
 	POP R0
 	RFE
 
-
-rot_int_1:								;míssil
-	MOV  [evento_mover_míssil], R0			; desbloqueia o evento de mover mísseis (R0 não é importante)
+; Rotina de interrupção relativa ao pino 1 (Míssil)
+rot_int_1:								
+	PUSH R0
+	MOV R0, [interrupt_stop]
+	CMP R0, 1
+	JZ rot_int_1_fim
+	MOV [evento_mover_míssil], R0			; Carrega o valor da variável evento_energia
+rot_int_1_fim:
+	POP R0
 	RFE
 
+; Rotina de interrupção relativa ao pino 2 (Energia)
+rot_int_2:
+	PUSH R0
+	MOV R0, [interrupt_stop]
+	CMP R0, 1
+	JZ rot_int_2_fim
+	MOV R0, -1
+	MOV [evento_energia], R0			; Carrega o valor da variável evento_energia
+rot_int_2_fim:
+	POP R0
+	RFE
 
 
 PROCESS SP_interrupt
@@ -1214,7 +1228,7 @@ inicialização_processo_meteoro:
 ;ideias: contador que decide quantos meteoros existem dependendo das vezes que se moveram; ou somehow fases
 inicio_ciclo_processo_meteoro:
 	MOV R0, [evento_mover_meteoros]		; quando o lock é ativado pelo relógio, o meteoro move-se
-	MOV R4, 1 							; desenhar pela primeira vez sem movimentar
+	MOV R4, 1 							; desenhar na linha seguinte
 	MOV R10, 3							; Número de meteoros a desenhar -1 | R10 vai ser o Index do meteoro
 ciclo_processo_meteoro:
 	MOV R11, R10
@@ -1244,8 +1258,8 @@ colisão_mau:
 	MOV [TOCA_SOM], R6					; Toca o barulho bom
 	MOV R6, 2
 	MOV [interrupções], R6
-	;MOV R6, TECLA_ACABA_JOGO			; Muda o valor de R6 para 1
-	;MOV [TECLA_CARREGADA], R6			; Aumenta a energia
+	MOV R6, TECLA_ACABA_JOGO			; Muda o valor de R6 para 1
+	MOV [TECLA_CARREGADA], R6			; Aumenta a energia
 	CALL apaga_meteoro
 	MOV R6, 1
 	MOV [interrupt_stop], R6
@@ -1315,7 +1329,7 @@ inicio_desenha_meteoro:
     ADD R4, 4           				; Obtém o endereço da cor do 1º pixel 
 	MOV R1, MAX_LINHA					; Obtém o endereço da última linha do ecrã
 	CMP R9, R1							; Verifica se a próxima linha do meteoro está fora do ecrã 
-	JGT meteoro_fora_do_ecrã			; Nesse caso, interrompe o desenho, pois o resto do meteoro já ultrapassou o ecrã 
+	JGT meteoro_fora_do_ecrã			; Nesse caso, interrompe o desenho, pois todo o meteoro já ultrapassou o ecrã 
 desenha_meteoro:       						
     MOV R1, MAX_LINHA					; Obtém o endereço da última linha do ecrã
 	CMP R9, R1							; Verifica se a próxima linha do meteoro está fora do ecrã 
@@ -1323,8 +1337,8 @@ desenha_meteoro:
 	MOV R6, R11
     MOV R6, R11
 	ADD R6, 2							; valor a somar ao endereço da tabela para obter coluna do meteoro
-	MOV R6, [R7+R6]		; Cópia da primeira coluna do meteoro
-	MOV R5, [R7+R11]		; Obtém o endereço da tabela que define o meteoro
+	MOV R6, [R7+R6]						; Cópia da primeira coluna do meteoro
+	MOV R5, [R7+R11]					; Obtém o endereço da tabela que define o meteoro
 	MOV	R5, [R5+2]						; Obtém a largura do meteoro
 desenha_pixels_meteoro:       		
 	MOV	R3, [R4]						; Obtém a cor do próximo pixel 
@@ -1492,4 +1506,20 @@ apaga_míssil:
 	POP R3
 	RET
 
+
+
+recomeçar_meteoros:
+    PUSH R11
+    PUSH R10
+    MOV R10, 3
+ciclo_recomeça_meteoros:
+    MOV R11, R10
+    SHL R11, 3
+    CALL decisoes_novo_meteoro_com_pin
+    CALL apaga_meteoro
+    SUB R10, 1
+    JNN ciclo_recomeça_meteoros
+    POP R10
+    POP R11
+    RET
 
