@@ -26,10 +26,8 @@ MASCARA					EQU 0FH			; Para isolar os 4 bits de menor peso, ao ler as colunas d
 TECLA_ESQUERDA			EQU 0H			; Tecla 0
 TECLA_DIREITA			EQU 2H			; Tecla 2
 TECLA_METEORO_BAIXO		EQU 7H			; Tecla 7
-TECLA_AUMENTA_DISPLAY 	EQU 0DH			; Tecla D
-TECLA_DIMINUI_DISPLAY	EQU 0CH			; Tecla C
 TECLA_START_GAME		EQU 0CH			; Tecla Pausa Jogo
-TECLA_PAUSA_JOGO		EQU 0FH			; Tecla Pausa Jogo
+TECLA_PAUSA_JOGO		EQU 0DH			; Tecla Pausa Jogo
 TECLA_ACABA_JOGO		EQU 0EH			; Tecla Acabar o Jogo
 
 DEFINE_LINHA    		EQU 600AH      	; Endereço do comando para definir a linha
@@ -393,18 +391,10 @@ mover_p_esquerda:						; Move a nave para a esquerda
 mover_p_direita:
 	MOV R7, TECLA_DIREITA
 	CMP R3, R7
-	JNZ suspender_jogo
+	JNZ tecla_missil
 	MOV R9, 1
 	MOV [evento_mover_nave] , R9
 	JMP tecla_é_continua
-suspender_jogo:
-	MOV R7, TECLA_AUMENTA_DISPLAY
-	CMP R3, R7
-	JNZ tecla_missil
-	MOV R9, 1
-	MOV [LOCK_GAMESTATE_PAUSED], R9
-	MOV [WORD_GAMESTATE_PAUSED], R9
-	JMP tecla_n_continua
 tecla_missil:
 	MOV R7, 1
 	CMP R3, R7
