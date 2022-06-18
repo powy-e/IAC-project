@@ -71,9 +71,10 @@ MAX_COLUNA				EQU  64     	; Número da última coluna à direita no ecrã
 
 
 COR_PIXEL_METEORO       EQU 0FF05H 
-COR_PIXEL_MISSIL 		EQU 0FD45H	 	
+COR_PIXEL_MISSIL 		EQU 0FF38H	 	
 
 ; Cores dos pixeis da nave
+PIXEL_CINZA 			EQU 0A578H
 PIXEL_VERMELHO 			EQU	0FF00H
 PIXEL_LARANJA 			EQU	0FF50H
 PIXEL_LARANJA2 			EQU 0FFA5H
@@ -92,12 +93,14 @@ FUNDO_JOGO				EQU 0
 BARULHO_BOM				EQU	0			; Som Bom
 BARULHO_EXPLOSÃO		EQU	0			; Som Explosão para quando a nave choca com Meteoro
 
-PIXEL_CINZA EQU 0AF00H
-TIPO_METEORO_MAU EQU 2 
-TIPO_METEORO_BOM EQU 4
-COLUNA EQU 0H
-LINHA EQU 0H
+TIPO_METEORO_MAU 		EQU 2 
+TIPO_METEORO_BOM		EQU 4
+COLUNA 					EQU 0H
+LINHA				 	EQU 0H
 
+SOM_COLISÃO_BOM			EQU	0			; Som de colisão com meteoro bom 
+SOM_COLISÃO_MAU			EQU	0			; Som de colisão com meteoro mau 
+SOM_DISPARO_MÍSSIL		EQU	0			; Som de disparo de míssil 
 
 ; +-------+
 ; | DADOS | 
@@ -210,7 +213,7 @@ POSIÇAO_NAVE:
 interrupt_stop:
 	WORD 0
 
-LINHA_ATUAL_MISSIL:	; será alterada para definir a linha atual do míssil
+LINHA_ATUAL_MISSIL:	; Define a linha atual do míssil (começa na linha da nave)
 	WORD LINHA_NAVE		
 
 
@@ -275,9 +278,9 @@ DEF_METEORO_5X5_MAU:						; tabela que define o meteoro mau
 
 
 TABELA_METEOROS:
-	WORD TIPO_METEORO_MAU, DEF_METEORO_1X1, 20, LINHA 
-	WORD TIPO_METEORO_BOM, DEF_METEORO_1X1, 13, LINHA	;0 1 2 ; 3 4 5 ;6 7 8 ;9 10 11
-	WORD TIPO_METEORO_MAU, DEF_METEORO_1X1, 7, LINHA
+	WORD TIPO_METEORO_MAU, DEF_METEORO_1X1, COLUNA, LINHA
+	WORD TIPO_METEORO_BOM, DEF_METEORO_1X1, COLUNA, LINHA
+	WORD TIPO_METEORO_MAU, DEF_METEORO_1X1, COLUNA, LINHA
 	WORD TIPO_METEORO_MAU, DEF_METEORO_1X1, COLUNA, LINHA
 
 TABELA_LINHAS_EVOLUÇÃO_METEOROS:
@@ -306,22 +309,10 @@ DEF_EXPLOSÃO_METEORO_BOM:
 
 
 
-;DEF_METEORO_MAU:						; tabela que define o meteoro mau 
-;	WORD		ALTURA_METEORO_MAU, LARGURA_METEORO_MAU
-;    WORD		COR_PIXEL_METEORO, 	0, 					0, 					0, 					COR_PIXEL_METEORO
-;	WORD		COR_PIXEL_METEORO, 	0, 					COR_PIXEL_METEORO, 	0, 					COR_PIXEL_METEORO
-;    WORD		0, 					COR_PIXEL_METEORO, 	COR_PIXEL_METEORO, 	COR_PIXEL_METEORO, 	0
-;   	WORD		COR_PIXEL_METEORO, 	0, 					COR_PIXEL_METEORO, 	0, 					COR_PIXEL_METEORO
-;    WORD		COR_PIXEL_METEORO, 	0, 					0, 					0, 					COR_PIXEL_METEORO
-;
-;POSIÇAO_METEORO:
-;	WORD LINHA_INICIAL_METEORO
-
-
 ; +--------+
 ; | CÓDIGO |
 ; +--------+
-PLACE   0                     			; o código tem de começar em 0000H
+PLACE   0                     			; O código tem de começar em 0000H
 inicio:
 	MOV  SP, SP_inicial					; Inicializa o SP (stack pointer)
 	MOV  BTE, tab_int					; Inicializa a tabela de interrupções
@@ -339,14 +330,14 @@ loop_teclados:							; Loop que chama o processo de teclado
 	JNZ loop_teclados					; Se não for, então volta ao loop
 
 
-CALL processo_displays				; Processo com lógica dos displays
+	CALL processo_displays				; Processo com lógica dos displays
 	CALL processo_nave					; Processo com lógica da nave
 	CALL processo_meteoro				; Processo com lógica dos meteoros
-	CALL processo_interrupt				; Processo de que gere as interrupções
-	CALL processo_misseis				; Processo com lógica dos misseis
+	CALL processo_interrupções			; Processo de que gere as interrupções
+	CALL processo_mísseis				; Processo com lógica dos mísseis
 	;CALL processo_pausa
 	;CALL processo_morte
-	;CALL misseis
+	;CALL mísseis
 
 	MOV	 R1, FUNDO_INICIO			    ; Cenário de fundo inicial
     MOV  [SELECIONA_CENARIO_FUNDO], R1	; Seleciona o cenário de fundo
@@ -476,22 +467,6 @@ ciclo_mostra_ecrãs:
 
 
 
-;PROCESS SP_nave
-;processo_nave:
-;inicialização:
-;	MOV R2, [COLUNA_INICIAL_NAVE]	; R2 recebe a coluna inicial da nave
-;	MOV R4, 0
-;	CALL desenha_col_offset				; Desenha a coluna de offset
-;loop_nave:
-;	MOV R4, [evento_mover_nave]		; R4 recebe o evento de mover a nave
-;	JLT nave_para_esquerda
-;	CALL mover_nave_direita				; Move a nave para a direita
-;	JMP loop_nave
-;nave_para_esquerda:
-;	CALL mover_nave_esquerda			; Move a nave para a esquerda
-;	JMP loop_nave
-
-
 
 
 
@@ -614,11 +589,11 @@ colisão_bom:
 	MOV R6, BARULHO_BOM					; Põe o index do barulho bom em R6
 	MOV [TOCA_SOM], R6					; Toca o barulho bom
 	MOV R6, 1							; Muda o valor de R6 para 1
-	MOV [evento_energia], R6				; Aumenta a energia
+	MOV [evento_energia], R6			; Aumenta a energia
 	CALL apaga_meteoro
 	MOV R6, TABELA_METEOROS					
-	SUB R11, R6 						; Argumento para decisoes_novo_meteoro_com_pin
-	CALL decisoes_novo_meteoro_com_pin
+	SUB R11, R6 						; Argumento para decisões_novo_meteoro
+	CALL decisões_novo_meteoro
 	JMP fim_colisões_nave
 colisão_mau:
 	MOV R6, BARULHO_EXPLOSÃO			; Põe o index do barulho bom em R6
@@ -630,7 +605,6 @@ colisão_mau:
 	CALL apaga_meteoro
 	MOV R6, 1
 	MOV [interrupt_stop], R6
-	;RET
 	JMP fim_colisões_nave
 não_colide:
 	MOV R5, 0							; Se não há colisão, R5 recebe 0
@@ -641,47 +615,67 @@ fim_colisões_nave:
 	RET
 	
 
-; Rotina de interrupção relativa ao pino 0 (Meteoros)
-rot_int_0:								;meteoro
+
+; ******************************************************	
+; *				  Rotinas de Interrupção	 		   *
+; ******************************************************	
+
+	
+; *
+; * Rotina de interrupção relativa ao pino 0 (Meteoros)
+; *
+rot_int_0:								
 	PUSH R0
-	MOV R0, [interrupt_stop]
+	MOV R0, [interrupt_stop]				; Se o jogo está em pausa ou terminado, o LOCK "evento_mover_meteoros" não é ativado.
 	CMP R0, 1
 	JZ rot_int_0_fim
-	MOV  [evento_mover_meteoros], R0			; desbloqueia o evento de mover meteoros (R0 não é importante)
+	MOV  [evento_mover_meteoros], R0		; Desbloqueia o evento de mover meteoros (R0 não é importante)
 rot_int_0_fim:
 	POP R0
 	RFE
 
-; Rotina de interrupção relativa ao pino 1 (Míssil)
+
+; *
+; * Rotina de interrupção relativa ao pino 1 (Míssil)
+; *
 rot_int_1:								
 	PUSH R0
-	MOV R0, [interrupt_stop]
+	MOV R0, [interrupt_stop]			; Se o jogo está em pausa ou terminado, o LOCK "evento_mover_míssil" não é ativado.
 	CMP R0, 1
 	JZ rot_int_1_fim
-	MOV [evento_mover_míssil], R0			; Carrega o valor da variável evento_energia
+	MOV [evento_mover_míssil], R0		; Desbloqueia o evento de mover mísseis
 rot_int_1_fim:
 	POP R0
 	RFE
 
-; Rotina de interrupção relativa ao pino 2 (Energia)
+; *
+; * Rotina de interrupção relativa ao pino 2 (Energia)
+; *
 rot_int_2:
 	PUSH R0
-	MOV R0, [interrupt_stop]
+	MOV R0, [interrupt_stop]			; Se o jogo está em pausa ou terminado, o LOCK "evento_energia" não é ativado.
 	CMP R0, 1
 	JZ rot_int_2_fim
 	MOV R0, -1
-	MOV [evento_energia], R0			; Carrega o valor da variável evento_energia
+	MOV [evento_energia], R0			; Desbloqueia o evento de variar a energia (diminui)
 rot_int_2_fim:
 	POP R0
 	RFE
 
 
+
+
+; *
+; * [Processo]
+; *
+; * processo_interrupções - Liga as interrupções e mantém-nas enquanto o jogo está a correr.
+; *
 PROCESS SP_interrupt
-processo_interrupt:
+processo_interrupções:
 	WAIT
 	MOV R1, [interrupções]
 	CMP R1, 0
-	JZ processo_interrupt
+	JZ processo_interrupções
 	CMP R1, 2
 	JZ desligar_int
 ligar_int:
@@ -698,18 +692,15 @@ desligar_int:
 restart_interrupt:	
 	MOV R0, 0
 	MOV [interrupções], R0
-	JMP processo_interrupt
+	JMP processo_interrupções
 
 PROCESS SP_displays
 processo_displays:
 loop_displays:
-	;MOV R1, [interrupt_stop]
-	;CMP R1, 0
-	;JNZ bloqueia_displays
 	MOV R0 , [evento_energia]			; Carrega o valor da variável evento_energia
-	CMP R0, 0
-	JLT diminuir_displays
-	CALL aumenta_energia_display
+	CMP R0, 0							; Verifica se o valor é 0
+	JLT diminuir_displays				; Se for inferior, diminui o valor do displays
+	CALL aumenta_energia_display		; Caso contra
 	JMP loop_displays
 diminuir_displays:
 	CALL diminui_energia_display
@@ -871,30 +862,7 @@ exit_diminui_energia_display:
 	RET
 
 
-;diminui_energia_display:
-;	PUSH R0								; Guarda o valor de R0
-;	PUSH R4								; Guarda o valor de R4
-;	PUSH R8								; Guarda o valor de R8
-;	MOV R0, [ENERGIA]					; Coloca em R0 o valor inicial da energia
-;	CMP R0, VALOR_ENERGIA_DIMINUI		; Se a energia for maior que 5, não altera
-;	JLT out_of_energy  
-;	SUB R0, 5
-;	MOV R11, R0
-;	MOV [ENERGIA], R0					; Guarda energia na memória
-;	CALL energia_para_decimal			; Converte a energia para decimal
-;	MOV [ENDEREÇO_DISPLAY], R4			; Coloca o valor inicial no display
-;	JMP exit_diminui_energia_display
-;out_of_energy:
-;	MOV R8, 1H
-;	MOV [evento_morte], R8
-;exit_diminui_energia_display:
-;	POP R8								; Restaura o valor de R8
-;	POP R4								; Restaura o valor de R4
-;	POP R0								; Restaura o valor de R0
-;	RET
-
-
-
+; *
 ; * ENERGIA_PARA_DECIMAL - Converte o valor de hexadeximal para decimal
 ; * Argumentos: R0 - energia em hexadecimal
 ; *
@@ -914,7 +882,7 @@ ciclo_energia_para_decimal:
 	DIV R3, R1							; Divide o resto da divisão pelo fator
 	SHL R4, 4							; Passa ao Próximo digito
 	OR  R4, R3							; Adiciona o resto ao valor da energia
-	CMP R1, R2							; Se o fator for <10, sai da função
+	CMP R1, R2							; Se o fator for <10, sai da rotina
 	JGE ciclo_energia_para_decimal
 	POP R3								; Restaura o valor de R3
 	POP R2								; Restaura o valor de R2
@@ -964,123 +932,6 @@ desenha_pixels_nave:
 	POP R8
     POP R9
 	RET
-
-
-
-;; **************************************	
-;; *				 Meteoros  	 		   *
-;; **************************************	
-;
-;
-;; *
-;; * MOVER_METEORO_MAU - Move o meteoro mau 1 linha para baixo, começando por obter a posição 
-;; *  da nave e apagando-a linha a linha, num ciclo.
-;; *
-;mover_meteoro_mau:	
-;    PUSH R8
-;    PUSH R9								; Guarda todos os registos utilizados
-;	PUSH R4						
-;	MOV R9, [POSIÇAO_METEORO]			; Cópia da linha onde se encontra o meteoro
-;	MOV R8, [DEF_METEORO_MAU]			; Cópia da altura (contador das linhas)
-;    MOV R4, 1							; Sentido do movimento (para baixo)
-;	CALL apaga_meteoro_mau
-;	CALL linha_seguinte
-;fim_movimento_meteoro:
-;    POP R4
-;	POP R9								; Repõe todos os registos utilizados
-;    POP R8
-;    RET
-;
-;
-;; *
-;; * APAGA_METEORO_MAU - Apaga o meteoro mau, começando por obter a sua posição 
-;; *  da nave e apagando-o linha a linha, num ciclo.
-;; * Argumentos: R8 - Altura do meteoro (contador das linhas)
-;; *				R9 - 1ª Linha onde se encontra o meteoro
-;; *
-;apaga_meteoro_mau:
-;	PUSH R9
-;	PUSH R8
-;	PUSH R6								; Guarda todos os registos utilizados
-;	PUSH R5
-;	PUSH R3
-;apaga_linha_meteoro_mau:
-;	MOV R6, COLUNA_METEORO				; Obtém a coluna onde começa o meteoro
-;	MOV	R5, [DEF_METEORO_MAU + 2]		; Obtém a largura do meteoro (contador de colunas)
-;	MOV	R3, 0							; Para apagar, a cor do pixel é sempre 0
-;apaga_pixels_meteoro:       			
-;	MOV  [DEFINE_LINHA], R9				; Seleciona a linha 
-;	MOV  [DEFINE_COLUNA], R6			; Seleciona a coluna
-;	MOV  [DEFINE_PIXEL], R3				; Altera (para 0) a cor do pixel na linha e coluna selecionadas
-;    ADD  R6, 1             				; Passa à próxima coluna
-;    SUB  R5, 1							; Reduz o contador de colunas por apagar
-;    JNZ  apaga_pixels_meteoro			; Continua até percorrer toda a largura do objeto
-;	ADD R9, 1							; Avança para a linha seguinte
-;    SUB R8, 1							; Reduz contador das linhas por apagar
-;	JNZ apaga_linha_meteoro_mau			; Vai apagar a próxima linha do meteoro
-;	POP R3
-;	POP R5								
-;	POP R6								; Repõe todos os registos
-;	POP R8
-;	POP R9
-;    RET
-;
-;; *
-;; * LINHA_SEGUINTE - Desenha o meteoro mau na posição desejada (1 linha abaixo), começando por 
-;; *  obter a sua posição e desenhando-o, linha a linha, num ciclo.
-;; * Argumentos: R4 - offset (descreve o sentido do movimento ou a não existência do mesmo)
-;; *				R8 - Altura do meteoro (contador das linhas)
-;; *				R9 - 1ª Linha onde se encontra o meteoro
-;; *
-;linha_seguinte:
-;	PUSH R9
-;	PUSH R8
-;	PUSH R6
-;	PUSH R5								; Guarda todos os registos utilizados
-;	PUSH R4
-;	PUSH R3 
-;	PUSH R2
-;	PUSH R1
-;	MOV R2, [POSIÇAO_METEORO]			; Vai buscar a linha do meteoro à memória
-;	ADD R2, R4							; Obtém a linha seguinte onde desenhar o meteoro	
-;	MOV [POSIÇAO_METEORO], R2			; Atualiza a linha inicial do meteoro
-;inicio_desenha_meteoro_mau:
-;	MOV R9, [POSIÇAO_METEORO]			; Volta a obter da memória a linha do meteoro
-;    MOV R8, [DEF_METEORO_MAU]   		; Obtém a altura do meteoro mau
-;    MOV	R4, DEF_METEORO_MAU				; Obtém o endereço da tabela que define o meteoro mau
-;    ADD R4, 4           				; Obtém o endereço da cor do 1º pixel 
-;desenha_meteoro_mau:       						
-;    MOV R1, MAX_LINHA					; Obtém o endereço da última linha do ecrã
-;	CMP R9, R1							; Verifica se a próxima linha do meteoro está fora do ecrã 
-;	JGT acaba_desenho_meteoro_mau		; Nesse caso, interrompe o desenho, pois o resto do meteoro já ultrapassou o ecrã 
-;	MOV R6, COLUNA_METEORO				; Cópia da primeira coluna do meteoro
-;	MOV	R5, [DEF_METEORO_MAU+2]			; Obtém a largura do meteoro
-;desenha_pixels_meteoro:       		
-;	MOV	R3, [R4]						; Obtém a cor do próximo pixel 
-;	MOV [DEFINE_LINHA], R9				; Seleciona a linha
-;	MOV [DEFINE_COLUNA], R6				; Seleciona a coluna
-;	MOV [DEFINE_PIXEL], R3				; Altera a cor do pixel na linha e coluna selecionadas
-;	ADD	R4, 2							; Obtém endereço da cor do próximo pixel 
-;    ADD R6, 1               			; Passa à próxima coluna
-;    SUB R5, 1							; Reduz o contador de colunas por desenhar
-;    JNZ desenha_pixels_meteoro 			; Continua até percorrer toda a largura do objeto
-;	ADD R9, 1               			; Avança para a linha seguinte
-;	SUB R8, 1							; Reduz o contador das linhas por desenhar
-;    JNZ desenha_meteoro_mau				; Vai desenhar a próxima linha do meteoro
-;	CALL inicio_ciclo_atraso			; Atrasa a execução do próximo comando, tornando o movimento mais fluido	
-;acaba_desenho_meteoro_mau:
-;	POP R1
-;	POP R2
-;	POP R3
-;	POP R4
-;	POP R5								; Repõe todos os registos
-;	POP R6
-;	POP R8
-;	POP R9
-;	RET
-   
-
-
 
 
 
@@ -1137,15 +988,161 @@ formata_coluna_ciclo:                   ; Para converter o valor da coluna lida
    MOV R0, TEMP
    RET
 
+;; **************************************	
+;; *				 Meteoros  	 		*
+;; **************************************	
 
 
 
 
 
 
-;rotina chamada sempre que uma nave inimiga é destruída, um meteoro bom colide com o rover ou qualquer deles se perde no fundo,
-; argumento-R11-valor a somar para aceder ao endereço da tabela que define o tipo de meteoro a criar
-decisoes_novo_meteoro_com_pin:
+
+
+
+; *
+; * [Processo]
+; *
+; * PROCESSO_METEORO - Cria e movimenta os meteoros ao longo do jogo, quando a interrupção 0 é ativada pelo relógio dos meteoros.
+; *
+PROCESS SP_Meteoro
+processo_meteoro:	
+	;MOV R6, [interrupções]
+inicialização_processo_meteoro:
+	MOV R4, 0 							; desenhar pela primeira vez sem movimentar
+	MOV R10, 3							; Número de meteoros a desenhar -1
+	JMP ciclo_processo_meteoro
+;ideias: contador que decide quantos meteoros existem dependendo das vezes que se moveram; ou somehow fases
+inicio_ciclo_processo_meteoro:
+	MOV R0, [evento_mover_meteoros]		; quando o lock é ativado pelo relógio, o meteoro move-se
+	MOV R4, 1 							; indicador do número de linhas que cada meteoro desce (sempre 1 exceto no início)
+	MOV R10, 3							; Número de meteoros a desenhar -1 | R10 vai ser o Index do meteoro
+ciclo_processo_meteoro:
+	MOV R11, R10
+	SHL R11, 3							; valor a somar para obter linha da tabela correspondente ao meteoro
+	CALL apaga_meteoro
+	CALL linha_seguinte
+	MOV R5, TABELA_METEOROS
+	ADD R11, R5
+	CALL colisões_nave
+	CMP R5, 0							
+	JNZ ciclo_processo_meteoro			; caso colida
+continuação_ciclo:
+	SUB R10, 1
+	JN inicio_ciclo_processo_meteoro
+	JMP ciclo_processo_meteoro
+
+
+
+
+
+; * LINHA_SEGUINTE - Desenha o meteoro na posição desejada (1 linha abaixo), começando por 
+; *  obter a sua posição e desenhando-o, linha a linha, num ciclo.
+; * Argumentos:  R4 - offset (descreve o sentido do movimento ou a não existência do mesmo)
+; * 			 R11 - Valor a somar à tabela de meteoros para obter o tipo do meteoro a apagar 
+; * 			 R10 - Número do ecrã do meteoro a apagar
+; * (ou seja, a linha da tabela que lhe corresponde)
+linha_seguinte:
+	PUSH R1
+	PUSH R2
+	PUSH R3 
+	PUSH R4
+	PUSH R5								; Guarda todos os registos utilizados
+	PUSH R6
+	PUSH R7						
+	PUSH R8
+	PUSH R9
+	PUSH R11
+	MOV [SELECIONA_ECRÃ_N], R10			; Seleciona o Ecrã do Meteoro
+	ADD R11, 2							; Obtém valor a somar para obter endereço para a tabela que define o meteoro a desenhar
+	MOV R2, R11							
+	ADD R2, 4							; Valor a somar para obter linha do ecrã do meteoro
+	MOV R9, TABELA_METEOROS
+	ADD R2, R9							; Obtém endereço para a linha do meteoro
+	MOV R9, [R2]						; Vai buscar a linha do meteoro à memória
+	ADD R9, R4							; Obtém a linha seguinte onde desenhar o meteoro	(0 se for a primeira vez a desenhar)
+	MOV [R2], R9						; Atualiza a linha inicial do meteoro
+evolução_meteoro:
+	MOV R7, 11
+	CMP R9, R7							; Se estiver numa linhaa superior a 11 não há evolução
+	JGT inicio_desenha_meteoro
+	MOV R7, R9							; Copia linha inicial do meteoro para R7
+	ADD R7, 1							; Soma-lhe 1 para verificar se será igual às linhas de evolução após lhes ser adicionado 1 a todas, pois ficam múltiplas de 3
+	MOV R4, R7							; Copia esse valor para R4
+	MOV R2, 3
+	MOD R4, R2							; Se a linha onde está não for múltipla de 3, não há evolução
+	JNZ inicio_desenha_meteoro
+	DIV R7, R2							; Obtém número da linha do meteoro na tabela de evolução
+	SUB R7, 1							; Converte número da linha (1 a 4) para índice (0 a 3)
+	MOV R2, 6
+	MUL R7, R2							; Obtém valor a somar ao endereço da tabela de evolução para obter endereço da linha da tabela correspondente
+	MOV R2, TABELA_METEOROS
+	ADD R2, R11							; Obtém endereço para a tabela que define o meteoro a desenhar
+	MOV R4, [R2-2]						; Verifica o tipo de meteoro (bom ou mau)
+	ADD R7, R4							; Soma 2 se for meteoro mau e 4 se for bom para obter valor a somar à tabela de evolução para obter endereço do novo desenho
+	MOV R4, TABELA_LINHAS_EVOLUÇÃO_METEOROS
+	MOV R4, [R7+R4]						; Obtém o endereço do novo desenho para o meteoro
+	MOV [R2], R4						; Atualiza o endereço do desenho do meteoro na tabela de meteoros
+inicio_desenha_meteoro:
+    MOV R7, TABELA_METEOROS
+	MOV R4, [R7+R11]					; Obtém o endereço da tabela que define o meteoro
+	MOV R8, [R4]   						; Obtém a altura do meteoro
+    ADD R4, 4           				; Obtém o endereço da cor do 1º pixel 
+	MOV R1, MAX_LINHA					; Obtém o endereço da última linha do ecrã
+	CMP R9, R1							; Verifica se a próxima linha do meteoro está fora do ecrã 
+	JGT meteoro_fora_do_ecrã			; Nesse caso, interrompe o desenho, pois todo o meteoro já ultrapassou o ecrã 
+desenha_meteoro:       						
+    MOV R1, MAX_LINHA					; Obtém o endereço da última linha do ecrã
+	CMP R9, R1							; Verifica se a próxima linha do meteoro está fora do ecrã 
+	JGT acaba_desenho_meteoro			; Nesse caso, interrompe o desenho, pois o resto do meteoro já ultrapassou o ecrã 
+	MOV R6, R11
+	ADD R6, 2							; valor a somar ao endereço da tabela para obter coluna do meteoro
+	MOV R6, [R7+R6]						; Cópia da primeira coluna do meteoro
+	MOV R5, [R7+R11]					; Obtém o endereço da tabela que define o meteoro
+	MOV	R5, [R5+2]						; Obtém a largura do meteoro
+desenha_pixels_meteoro:       		
+	MOV	R3, [R4]						; Obtém a cor do próximo pixel 
+	MOV [DEFINE_LINHA], R9				; Seleciona a linha
+	MOV [DEFINE_COLUNA], R6				; Seleciona a coluna
+	MOV [DEFINE_PIXEL], R3				; Altera a cor do pixel na linha e coluna selecionadas
+	ADD	R4, 2							; Obtém endereço da cor do próximo pixel 
+    ADD R6, 1               			; Passa à próxima coluna
+    SUB R5, 1							; Reduz o contador de colunas por desenhar
+    JNZ desenha_pixels_meteoro 			; Continua até percorrer toda a largura do objeto
+	ADD R9, 1               			; Avança para a linha seguinte
+	SUB R8, 1							; Reduz o contador das linhas por desenhar
+    JNZ desenha_meteoro					; Vai desenhar a próxima linha do meteoro
+acaba_desenho_meteoro:
+	POP R11
+	POP R9
+	POP R8
+	POP R7
+	POP R6
+	POP R5								; Repõe todos os registos
+	POP R4
+	POP R3
+	POP R2
+	POP R1
+	RET
+meteoro_fora_do_ecrã:
+	SUB R11, 2							; Valor a somar à tabela de meteoros para obter o tipo do meteoro a reiniciar
+	CALL decisões_novo_meteoro			; Atualiza a posição do meteoro para uma pseudo-aleatória
+	JMP acaba_desenho_meteoro
+
+
+
+; *
+; * APAGA_METEORO - Rotina que apaga o meteoro mau, apagando o ecrã correspondente ao seu índice.
+; * Argumentos: R10 - Índice do meteoro.
+; *				
+apaga_meteoro:
+	MOV [APAGA_ECRÃ_N], R10				; Apaga o Ecrã do Meteoro
+    RET
+
+; * DECISÕES_NOVO_METEORO - Rotina chamada sempre que uma nave inimiga é destruída, um meteoro bom colide com o rover 
+; * 	ou qualquer deles se perde no fundo, para definir os parâmetros do novo meteoro (posição, tipo e desenho).
+; * Argumento: 	R11- Valor a somar para aceder ao endereço da tabela que define o tipo de meteoro a criar.
+decisões_novo_meteoro:
 	PUSH R0
 	PUSH R3
 	PUSH R4
@@ -1188,16 +1185,10 @@ escolha_meteoro_mau:
 	ADD R11, R10
 	MOV [R11], R4
 	JMP fim_decisões_novo_meteoro
-	;MOV R3, -1 ;(indicador de meteoro mau)
-	;MOV [lock_cria_meteoro]? maybe lock para ser mau idk
-	;CALL função que cria meteoro (mau) tendo R0 como coluna primeira coluna
 escolha_meteoro_bom:
 	MOV R4, TIPO_METEORO_BOM			; atualiza o tipo de meteoro (bom)
 	ADD R11, R10
 	MOV [R11], R4
-	;MOV R3, 1	;(indicador de meteoro bom)
-	;MOV [lock_cria_meteoro]?
-	;CALL função que cria meteoro (bom) tendo R0 como coluna primeira coluna
 fim_decisões_novo_meteoro:
 	POP R11
 	POP R10
@@ -1208,195 +1199,40 @@ fim_decisões_novo_meteoro:
 
 
 
-;argumento-R11-meteoro a desenhar(0,1,2,3) e R4-quanto somar para mudar de linha (0 ou 1)
-;PROCESS SP_Meteoro
-;processo_meteoro:	;chamar com R10 = 0 pela primeira vez
-;inicio_processo_meteoro:
-;	MOV R10, 0							; Número do meteoro
-;	MOV R4, 0 							; desenhar pela primeira vez sem movimentar
-;ciclo_processo_meteoro:
-;	MOV R11, R10
-;	MOV R4, 8
-;	MUL R11, R4							; valor a somar para obter linha da tabela correspondente ao meteoro
-;	CALL linha_seguinte
-;	MOV R0, [evento_mover_meteoros]		; quando o lock é ativado pelo relógio, o meteoro move-se
-;	CALL apaga_meteoro
-;	;ADD R10, 1
-;	MOV R4, 1
-;	CMP R10, 4
-;	JGE inicio_processo_meteoro
-;	JMP ciclo_processo_meteoro
+
+; **************************************
+; *				 Mísseis	 		   *
+; **************************************
 
 
-
-PROCESS SP_Meteoro
-processo_meteoro:	
-	;MOV R6, [interrupções]
-inicialização_processo_meteoro:
-	MOV R4, 0 							; desenhar pela primeira vez sem movimentar
-	MOV R10, 3							; Número de meteoros a desenhar -1
-	JMP ciclo_processo_meteoro
-;ideias: contador que decide quantos meteoros existem dependendo das vezes que se moveram; ou somehow fases
-inicio_ciclo_processo_meteoro:
-	MOV R0, [evento_mover_meteoros]		; quando o lock é ativado pelo relógio, o meteoro move-se
-	MOV R4, 1 							; desenhar na linha seguinte
-	MOV R10, 3							; Número de meteoros a desenhar -1 | R10 vai ser o Index do meteoro
-ciclo_processo_meteoro:
-	MOV R11, R10
-	SHL R11, 3							; valor a somar para obter linha da tabela correspondente ao meteoro
-	CALL apaga_meteoro
-	CALL linha_seguinte
-	MOV R5, TABELA_METEOROS
-	ADD R11, R5
-	CALL colisões_nave
-	CMP R5, 0							
-	JNZ ciclo_processo_meteoro							; caso colida
-continuação_ciclo:
-	SUB R10, 1
-	JN inicio_ciclo_processo_meteoro
-	JMP ciclo_processo_meteoro
-
-
-
-
-
-
-;; * LINHA_SEGUINTE - Desenha o meteoro na posição desejada (1 linha abaixo), começando por 
-;; *  obter a sua posição e desenhando-o, linha a linha, num ciclo.
-;; * Argumentos: R4 - offset (descreve o sentido do movimento ou a não existência do mesmo)
-; * 			 R11 - Valor a somar à tabela de meteoros para obter o tipo do meteoro a apagar 
-; * 			 R10 - Número do ecrã do meteoro a apagar
-; * (ou seja, a linha da tabela que lhe corresponde)
-linha_seguinte:
-	PUSH R1
-	PUSH R2
-	PUSH R3 
-	PUSH R4
-	PUSH R5								; Guarda todos os registos utilizados
-	PUSH R6
-	PUSH R7						
-	PUSH R8
-	PUSH R9
-	PUSH R11
-	MOV [SELECIONA_ECRÃ_N], R10			; Seleciona o Ecrã do Meteoro
-	ADD R11, 2							; valor a somar para obter tabela que define o meteoro a desenhar
-	MOV R2, R11							
-	ADD R2, 4							; valor a somar para obter linha do ecrã do meteoro
-	MOV R9, TABELA_METEOROS
-	ADD R2, R9
-	MOV R9, [R2]						; Vai buscar a linha do meteoro à memória
-	ADD R9, R4							; Obtém a linha seguinte onde desenhar o meteoro	(0 se for a primeira vez a desenhar)
-	MOV [R2], R9						; Atualiza a linha inicial do meteoro
-evolução_meteoro:
-	MOV R7, 11
-	CMP R9, R7							; se estiver numa linhaa supeiror a 12 não há evolução
-	JGT inicio_desenha_meteoro
-	MOV R7, R9
-	ADD R7, 1
-	MOV R4, R7
-	MOV R2, 3
-	MOD R4, R2							; se a linha onde está não for múltipla de 3, não há evolução
-	JNZ inicio_desenha_meteoro
-	DIV R7, R2							; Otém número da linha do meteoro na tabela de evolução
-	SUB R7, 1							; Converte número da linha (1 a 4) para índice (0 a 3)
-	MOV R2, 6
-	MUL R7, R2							; obtém valor a somar ao endereço da tabela de evolução para obter novo desenho
-	MOV R2, TABELA_METEOROS
-	ADD R2, R11
-	MOV R4, [R2-2]
-	ADD R7, R4							; soma 0 se for meteoro mau e 2 se for bom
-	MOV R4, TABELA_LINHAS_EVOLUÇÃO_METEOROS
-	MOV R4, [R7+R4]						; obtém novo desenho para o meteoro
-	MOV [R2], R4						; atualiza o desenho do meteoro
-inicio_desenha_meteoro:
-    MOV R7, TABELA_METEOROS
-	MOV R4, [R7+R11]					; Obtém o endereço da tabela que define o meteoro
-	MOV R8, [R4]   						; Obtém a altura do meteoro
-    ADD R4, 4           				; Obtém o endereço da cor do 1º pixel 
-	MOV R1, MAX_LINHA					; Obtém o endereço da última linha do ecrã
-	CMP R9, R1							; Verifica se a próxima linha do meteoro está fora do ecrã 
-	JGT meteoro_fora_do_ecrã			; Nesse caso, interrompe o desenho, pois todo o meteoro já ultrapassou o ecrã 
-desenha_meteoro:       						
-    MOV R1, MAX_LINHA					; Obtém o endereço da última linha do ecrã
-	CMP R9, R1							; Verifica se a próxima linha do meteoro está fora do ecrã 
-	JGT acaba_desenho_meteoro			; Nesse caso, interrompe o desenho, pois o resto do meteoro já ultrapassou o ecrã 
-	MOV R6, R11
-    MOV R6, R11
-	ADD R6, 2							; valor a somar ao endereço da tabela para obter coluna do meteoro
-	MOV R6, [R7+R6]						; Cópia da primeira coluna do meteoro
-	MOV R5, [R7+R11]					; Obtém o endereço da tabela que define o meteoro
-	MOV	R5, [R5+2]						; Obtém a largura do meteoro
-desenha_pixels_meteoro:       		
-	MOV	R3, [R4]						; Obtém a cor do próximo pixel 
-	MOV [DEFINE_LINHA], R9				; Seleciona a linha
-	MOV [DEFINE_COLUNA], R6				; Seleciona a coluna
-	MOV [DEFINE_PIXEL], R3				; Altera a cor do pixel na linha e coluna selecionadas
-	ADD	R4, 2							; Obtém endereço da cor do próximo pixel 
-    ADD R6, 1               			; Passa à próxima coluna
-    SUB R5, 1							; Reduz o contador de colunas por desenhar
-    JNZ desenha_pixels_meteoro 			; Continua até percorrer toda a largura do objeto
-	ADD R9, 1               			; Avança para a linha seguinte
-	SUB R8, 1							; Reduz o contador das linhas por desenhar
-    JNZ desenha_meteoro				; Vai desenhar a próxima linha do meteoro
-	;CALL inicio_ciclo_atraso			; Atrasa a execução do próximo comando, tornando o movimento mais fluido	
-acaba_desenho_meteoro:
-	POP R11
-	POP R9
-	POP R8
-	POP R7
-	POP R6
-	POP R5								; Repõe todos os registos
-	POP R4
-	POP R3
-	POP R2
-	POP R1
-	RET
-meteoro_fora_do_ecrã:
-	SUB R11, 2							; valor a somar para obter tipo de meteoro
-	CALL decisoes_novo_meteoro_com_pin
-	;MOV R4, 0
-	;CALL linha_seguinte
-	JMP acaba_desenho_meteoro
-
-
-
-
-; * APAGA_METEORO - Apaga o meteoro mau, apagando o ecrã correspondente ao seu index
-; * Argumentos: R10 - Indice do meteoro.
-; *				
-apaga_meteoro:
-	MOV [APAGA_ECRÃ_N], R10		; Apaga o Ecrã do Meteoro
-    RET
-
-
-
-
-
-
-;;;;; MISSEIS
+;PROCESS SP_míssil
+; * [Processo]
+; *
+; * PROCESSO_MÍSSEIS - Cria o míssil disparado pela nave (quando a tecla 1 é premida), e movimenta-o quando
+; *  a interrupção 1 (do relógio dos mísseis) ativa a LOCK "evento_mover_míssil". Verifica também se o míssil atingiu algum meteoro, 
+; *  desencadeando, nesse caso, os acontecimentos associados (possível subida da energia, efeitos sonoros e visuais, etc).
+; *
 PROCESS SP_míssil
-processo_misseis:	; chamado qd tecla missil premida (TECLA 1) 
-inicio_processo_misseis:
-	MOV R0, [evento_disparar_míssil]
+processo_mísseis:						; Controla os mísseis
+inicio_processo_mísseis:
+	MOV R0, [evento_disparar_míssil]	; Lock para quando começar o evento
 	MOV R0, -1
 	MOV [evento_energia], R0
 	MOV R3, 13							; Contador de movimentos do míssil (máximo é 12) - 
 inicialização_míssil:					; 		    - definido como 13 para comparar com 0
-; SOM DISPARO MISSIL
-	MOV R0, 0 							; Ainda só há 1 som
-	MOV [TOCA_SOM], R0
+	MOV R0, SOM_DISPARO_MÍSSIL			; Som do disparo do míssil
+	MOV [TOCA_SOM], R0					; Toca o som do disparo do míssil
 	MOV R2, LINHA_NAVE
 	MOV [LINHA_ATUAL_MISSIL], R2
 	MOV R1, [POSIÇAO_NAVE]				; Obtém a coluna da nave
 	ADD R1, 2							; Obtém a coluna do meio da nave, de onde sai o míssil
-ciclo_misseis:
+ciclo_mísseis:
 	CALL desenha_míssil
-; REDUZIR ENERGIA DISPLAY EM 5%
 inicio_verifica_colisão:
 	MOV R10, 4							; contador dos meteoros com que se vai avaliar a existência de colisão
 	MOV R2, [LINHA_ATUAL_MISSIL]		; Obtém a linha onde se encontra o míssil
 verifica_colisão:
-	SUB R10, 1							; R10 assume o índice do meteoro que se vai avaliar (argumento para a função linha_seguinte caso haja colisão)
+	SUB R10, 1							; R10 assume o índice do meteoro que se vai avaliar (argumento para a rotina linha_seguinte caso haja colisão)
 	JN não_houve_colisão
 	MOV R6, TABELA_METEOROS				; Aponta para a tabela de meteoros
 	MOV R5, R10							; Copia o índice do meteoro que vai ser avaliado 
@@ -1421,40 +1257,34 @@ não_houve_colisão:
 	JZ fim_ciclo_mísseis				; Atingiu o limite de movimentos
 	MOV TEMP, [evento_mover_míssil]
 	CALL apaga_míssil
-	JMP ciclo_misseis
+	JMP ciclo_mísseis
 fim_ciclo_mísseis:
 	CALL apaga_míssil
-	JMP inicio_processo_misseis
+	JMP inicio_processo_mísseis
 houve_colisão:
 	MOV R5, [R6]						; Obtém o tipo do meteoro
 	CMP R5, TIPO_METEORO_MAU			; Compara o tipo do meteoro com o tipo de meteoro mau
 	JZ colisão_meteoro_mau
-	; SOM da COLISÃO					; colisão com um meteoro bom
-	MOV R0, 0 							; Ainda só há 1 som
+	MOV R0, SOM_COLISÃO_BOM				; Som colisão com um meteoro bom
 	MOV [TOCA_SOM], R0
-	; IMAGEM
 	MOV R5, DEF_EXPLOSÃO_METEORO_BOM	; Aponta para a definição da explosão do meteoro bom
 rot_destruição:
 	CALL apaga_míssil	 
 	CALL apaga_meteoro					; apaga metero de indíce R10	
-	MOV R4, 0							; offset 0 para não alterar a posição do meteoro (argumento para a função linha_seguinte)
-	MOV R11, R6							 
+	MOV R4, 0							; offset 0 para não alterar a posição do meteoro (argumento para a rotina linha_seguinte)
+	MOV R11, R6							; Copia o endereço do tipo do meteoro 
 	MOV [R11+2], R5						; Atualiza endereço da definição do meteoro para a do meteoro explodido
 	MOV R6, TABELA_METEOROS
-	SUB R11, R6							; Obtém valor a somar á tabela de meteoros para obter o endereço do tipo de meteoro (argumento para a função linha_seguinte)
+	SUB R11, R6							; Obtém valor a somar à tabela de meteoros para obter o endereço do tipo de meteoro (argumento para a rotina linha_seguinte)
 	CALL linha_seguinte
-	;CALL apaga_meteoro
-	CALL decisoes_novo_meteoro_com_pin
-	;CALL linha_seguinte
-	JMP inicio_processo_misseis
-
+	CALL decisões_novo_meteoro
+	JMP inicio_processo_mísseis
 colisão_meteoro_mau:
 	MOV R5, DEF_EXPLOSÃO_METEORO_MAU	; Aponta para a definição da explosão do meteoro mau
-	; SOM da COLISÃO					; colisão com um meteoro bom
-	MOV R0, 0							; Ainda só há 1 som
+	MOV R0, SOM_COLISÃO_MAU				; Som colisão com um meteoro mau
 	MOV [TOCA_SOM], R0
 	MOV R0, 1
-	MOV [evento_energia], R0			; Aumenta Energia
+	MOV [evento_energia], R0			; Desbloqueia o evento de variar a energia (aumenta)
 	JMP rot_destruição
 
 
@@ -1477,6 +1307,7 @@ desenha_míssil:
 	POP R3
 	POP R2
 	RET
+
 ; * APAGA_MÍSSIL - Apaga o míssil do ecrã.
 ; * Argumentos: R1 - coluna onde o míssil se desloca
 ; * 
@@ -1503,7 +1334,7 @@ recomeçar_meteoros:
 ciclo_recomeça_meteoros:
     MOV R11, R10
     SHL R11, 3
-    CALL decisoes_novo_meteoro_com_pin
+    CALL decisões_novo_meteoro
     CALL apaga_meteoro
     SUB R10, 1
     JNN ciclo_recomeça_meteoros
