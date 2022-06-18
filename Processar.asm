@@ -81,6 +81,11 @@ PIXEL_VERDE 			EQU	0FAF5H
 PIXEL_AZUL 				EQU	0F0AFH
 
 
+FUNDO_INICIO			EQU 1
+FUNDO_PAUSA				EQU 1
+FUNDO_GAME_OVER			EQU 1
+FUNDO_JOGO				EQU 0
+
 BARULHO_BOM				EQU	0			; Som Bom
 BARULHO_EXPLOSÃO		EQU	0			; Som Explosão para quando a nave choca com Meteoro
 
@@ -317,7 +322,7 @@ PLACE   0                     			; o código tem de começar em 0000H
 inicio:
 	MOV  [APAGA_AVISO], R1	    		; Apaga o aviso de nenhum cenário selecionado 
     MOV  [APAGA_ECRÃS], R1	    		; Apaga todos os pixels já desenhados 
-	MOV	 R1, 1			        		; Cenário de fundo número 0
+	MOV	 R1, FUNDO_INICIO			    ; Cenário de fundo inicial
     MOV  [SELECIONA_CENARIO_FUNDO], R1	; Seleciona o cenário de fundo
 	MOV  SP, SP_inicial					; Inicializa o SP (stack pointer)
 	MOV  BTE, tab_int					; Inicializa a tabela de interrupções
@@ -340,7 +345,7 @@ start_game:
 
 	MOV  [APAGA_AVISO], R1	    		; Apaga o aviso de nenhum cenário selecionado 
     MOV  [APAGA_ECRÃS], R1	    		; Apaga todos os pixels já desenhados 
-	MOV R1, 0							; Cenário de fundo número 0
+	MOV R1, FUNDO_JOGO					; Cenário de fundo Jogo
 	MOV [SELECIONA_CENARIO_FUNDO], R1	; Seleciona o cenário de fundo
 
 
@@ -349,8 +354,8 @@ start_game:
 	CALL processo_meteoro
 	CALL processo_interrupt
 	CALL processo_misseis
-	;CALL processo_pausa
-	;CALL processo_morte
+	CALL processo_pausa
+	CALL processo_morte
 	;CALL misseis
 
 
@@ -427,7 +432,7 @@ tecla_n_continua:
 
 PROCESS SP_inicial_pausa
 processo_pausa:
-	MOV R0, [LOCK_GAMESTATE_PAUSED]
+	MOV R0, [LOCK_GAMESTATE_PAUSED]		; Espera até o jogo parar
 	MOV R1, 1
 	CMP R0, 1
 	JNZ processo_pausa
@@ -435,7 +440,7 @@ pause:
 	DI0
 	DI
 	MOV [APAGA_AVISO], R1
-	MOV R1, 1
+	MOV R1, FUNDO_PAUSA
 	MOV [SELECIONA_CENARIO_FUNDO], R1
 
 resume:
@@ -449,7 +454,7 @@ resume:
 	EI0
 	EI
 	MOV [APAGA_AVISO], R1
-	MOV R1, 0
+	MOV R1, FUNDO_JOGO
 	MOV [SELECIONA_CENARIO_FUNDO], R1
 	JMP processo_pausa
 
@@ -463,7 +468,7 @@ morte:
 	DI0
 	DI
 	MOV [APAGA_ECRÃS], R1
-	MOV R1, 1
+	MOV R1, FUNDO_GAME_OVER
 	MOV [SELECIONA_CENARIO_FUNDO], R1
 	JMP morte
 
@@ -659,12 +664,14 @@ processo_interrupt:
 ligar_int:
 	EI0
 	EI1
+	EI2
 	EI
 	JMP restart_interrupt
 desligar_int:
 	DI
 	DI0
 	DI1
+	DI2
 restart_interrupt:	
 	MOV R0, 0
 	MOV [interrupções], R0
