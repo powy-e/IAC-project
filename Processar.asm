@@ -30,7 +30,7 @@ TECLA_AUMENTA_DISPLAY 	EQU 0DH			; Tecla D
 TECLA_DIMINUI_DISPLAY	EQU 0CH			; Tecla C
 TECLA_START_GAME		EQU 0CH			; Tecla Pausa Jogo
 TECLA_PAUSA_JOGO		EQU 0FH			; Tecla Pausa Jogo
-TECLA_ACABA_JOGO		EQU 10H			; Tecla Acabar o Jogo
+TECLA_ACABA_JOGO		EQU 0EH			; Tecla Acabar o Jogo
 
 DEFINE_LINHA    		EQU 600AH      	; Endereço do comando para definir a linha
 DEFINE_COLUNA   		EQU 600CH      	; Endereço do comando para definir a coluna
@@ -364,7 +364,10 @@ start_game:
 	;MOV  [APAGA_AVISO], R1	    		; Apaga o aviso de nenhum cenário selecionado 
 	MOV R1, FUNDO_JOGO					; Cenário de fundo Jogo
 	MOV [SELECIONA_CENARIO_FUNDO], R1	; Seleciona o cenário de fundo
-	CALL recomeçar_meteoros
+	MOV R1, 100							; Energia a 100%
+	MOV [ENERGIA], R1					; Inicializa a energia a 100
+	CALL inicia_energia_display
+	CALL recomeçar_meteoros				; Coloca os meteoros numa posição pseudo-aleatória
 	CALL mostra_ecrãs					; Mostra todos os ecrãs
 
 
@@ -390,24 +393,10 @@ mover_p_esquerda:						; Move a nave para a esquerda
 mover_p_direita:
 	MOV R7, TECLA_DIREITA
 	CMP R3, R7
-	JNZ display_p_baixo
+	JNZ suspender_jogo
 	MOV R9, 1
 	MOV [evento_mover_nave] , R9
 	JMP tecla_é_continua
-display_p_baixo:
-	MOV R7, TECLA_DIMINUI_DISPLAY
-	CMP R3, R7
-	JNZ suspender_jogo
-	MOV R9, -1
-	MOV [evento_energia] , R9
-	JMP tecla_n_continua
-display_p_cima:
-	MOV R7, TECLA_AUMENTA_DISPLAY
-	CMP R3, R7
-	JNZ tecla_missil
-	MOV R9, 1
-	MOV [evento_energia] , R9
-	JMP tecla_n_continua
 suspender_jogo:
 	MOV R7, TECLA_AUMENTA_DISPLAY
 	CMP R3, R7
@@ -432,6 +421,8 @@ acaba_jogo:
 	MOV R7, TECLA_ACABA_JOGO
 	CMP R3, R7
 	JNZ nao_tecla
+	MOV R7, 0
+	MOV [TECLA_CONTINUA], R7
 	MOV R7, 1
 	MOV [interrupt_stop], R7
 	MOV R7, FUNDO_GAME_OVER_METEORO
@@ -518,14 +509,14 @@ ciclo_mostra_ecrãs:
 PROCESS SP_nave
 processo_nave:
 inicialização:
-	MOV R10, ECRÃ_NAVE				; R10 recebe o ecrã da nave					
-	MOV [SELECIONA_ECRÃ_N], R10	
+	MOV R0, ECRÃ_NAVE				; R0 recebe o ecrã da nave					
+	MOV [SELECIONA_ECRÃ_N], R0	
 	MOV R2, COLUNA_INICIAL_NAVE		; R2 recebe a coluna inicial da nave
 	MOV R4, 0
 	CALL desenha_col_offset			; Desenha a coluna de offset
 loop_nave:
-	MOV R10, ECRÃ_NAVE				; R10 recebe o ecrã da nave					
-	MOV [SELECIONA_ECRÃ_N], R10	
+	MOV R0, ECRÃ_NAVE				; R0 recebe o ecrã da nave					
+	MOV [SELECIONA_ECRÃ_N], R0	
 	MOV R4, [evento_mover_nave]		; R4 recebe o evento de mover a nave
 	CMP R4, 0
 	JLT nave_para_esquerda
@@ -545,17 +536,17 @@ nave_para_esquerda:
 mover:
 	CALL inicio_apaga_nave      	; Apaga o Ecrã da NAVE apagando a Nave
     CALL desenha_col_offset   		; Chama a rotina que desenha da Nave
-	MOV R6, 4						; R10 recebe o número de meteoros
+	MOV R10, 4						; R10 recebe o número de meteoros
 ver_colisões:
-	SUB R6, 1						; Decrementa o número de meteoros
+	SUB R10, 1						; Decrementa o número de meteoros
 	JN fim_mover 					; Se não houver mais meteoros, para de verificar
-	MOV R11, R6						; Copia R6 para R11 
+	MOV R11, R10					; Copia R10 para R11 
 	SHL R11, 3						; Multiplica por 8 encontrando a posição na tabela
 	MOV R5, TABELA_METEOROS			; R5 recebe o inicio da tabela de meteoros
 	ADD R11, R5						; R11 recebe Linha da Tabela de Meteoros
 	CALL colisões_nave				; Chama a rotina que verifica se há colisão
-	CMP R5, 0						; Verifica se há colisão
-	JZ ver_colisões					; Se não, continua a verificar
+	CMP R5, TIPO_METEORO_MAU		; Verifica se há colisão
+	JNZ ver_colisões				; Se não, continua a verificar
 colide:
 	MOV R5, 0
 	MOV [TOCA_SOM], R5
@@ -604,10 +595,12 @@ apaga_pixels_nave:
 ; *
 ; * COLISÕES_NAVE - Deteta Colisões com a Nave.
 ; * Argumetos: R11 - Linha da Tabela de Meteoros
+; *			   R10 - Index do meteoro
 ; * Retorna: R5 - Evento de Colisão 0 - Não houve colisão caso contrário passa o tipo de meteoro
 colisões_nave:
 	PUSH R3
 	PUSH R4
+	PUSH R11
 	MOV	R5, LINHA_NAVE					; R5 recebe a Linha onde a nave  encontra
 	MOV R4, [R11 + 6]					; R4 recebe a Linha onde se encontra o Meteoro
 	MOV R3, [R11 + 2]					; Endereço da Tabela que define Meteoro
@@ -625,10 +618,34 @@ colisões_nave:
 	CMP R5, R4							; Verifica se a direita da nave se encontra à direita da coluna esquerda do meteoro
 	JLE não_colide						; Se não, não há colisão
 	MOV R5, [R11]						; Se há colisão, R5 recebe o tipo de meteoro
+	CMP R5, TIPO_METEORO_BOM
+	JNZ colisão_mau
+colisão_bom:
+	MOV R6, BARULHO_BOM					; Põe o index do barulho bom em R6
+	MOV [TOCA_SOM], R6					; Toca o barulho bom
+	MOV R6, 1							; Muda o valor de R6 para 1
+	MOV [evento_energia], R6				; Aumenta a energia
+	CALL apaga_meteoro
+	MOV R6, TABELA_METEOROS					
+	SUB R11, R6 						; Argumento para decisoes_novo_meteoro_com_pin
+	CALL decisoes_novo_meteoro_com_pin
+	JMP fim_colisões_nave
+colisão_mau:
+	MOV R6, BARULHO_EXPLOSÃO			; Põe o index do barulho bom em R6
+	MOV [TOCA_SOM], R6					; Toca o barulho bom
+	MOV R6, 2
+	MOV [interrupções], R6
+	MOV R6, TECLA_ACABA_JOGO			; Muda o valor de R6 para 1
+	MOV [TECLA_CARREGADA], R6			; Aumenta a energia
+	CALL apaga_meteoro
+	MOV R6, 1
+	MOV [interrupt_stop], R6
+	;RET
 	JMP fim_colisões_nave
 não_colide:
 	MOV R5, 0							; Se não há colisão, R5 recebe 0
 fim_colisões_nave:
+	POP R11
 	POP R4
 	POP R3
 	RET
@@ -695,7 +712,6 @@ restart_interrupt:
 
 PROCESS SP_displays
 processo_displays:
-	CALL inicia_energia_display			; Inicia a energia e o display
 loop_displays:
 	;MOV R1, [interrupt_stop]
 	;CMP R1, 0
@@ -850,12 +866,15 @@ diminui_energia_display:
 	PUSH R0								; Guarda o valor de R0
 	PUSH R4								; Guarda o valor de R4
 	MOV R0, [ENERGIA]					; Coloca em R0 o valor inicial da energia
-	CMP R0, VALOR_ENERGIA_DIMINUI		; Se a energia for maior que 5, não altera
-	JLT exit_diminui_energia_display   
+subtrai_energia:
 	SUB R0, 5 
 	MOV [ENERGIA], R0					; Guarda energia na memória
 	CALL energia_para_decimal			; Converte a energia para decimal
 	MOV [ENDEREÇO_DISPLAY], R4			; Coloca o valor inicial no display
+	CMP R0, 0
+	JNZ exit_diminui_energia_display
+	MOV R0, TECLA_ACABA_JOGO
+	MOV [TECLA_CARREGADA], R0
 exit_diminui_energia_display: 
 	POP R4								; Restaura o valor de R4
 	POP R0								; Restaura o valor de R0
@@ -1241,32 +1260,7 @@ ciclo_processo_meteoro:
 	ADD R11, R5
 	CALL colisões_nave
 	CMP R5, 0							
-	JZ continuação_ciclo							; caso colida
-ohohoh:
-	CMP R5, TIPO_METEORO_BOM
-	JNZ colisão_mau
-colisão_bom:
-	MOV R6, BARULHO_BOM					; Põe o index do barulho bom em R6
-	MOV [TOCA_SOM], R6					; Toca o barulho bom
-	MOV R6, 1							; Muda o valor de R6 para 1
-	MOV [evento_energia],R6				; Aumenta a energia
-	CALL apaga_meteoro
-	MOV R5, TABELA_METEOROS					
-	SUB R11, R5 						; Argumento para decisoes_novo_meteoro_com_pin
-	CALL decisoes_novo_meteoro_com_pin
-	JMP continuação_ciclo
-colisão_mau:
-	MOV R6, BARULHO_EXPLOSÃO			; Põe o index do barulho bom em R6
-	MOV [TOCA_SOM], R6					; Toca o barulho bom
-	MOV R6, 2
-	MOV [interrupções], R6
-	MOV R6, TECLA_ACABA_JOGO			; Muda o valor de R6 para 1
-	MOV [TECLA_CARREGADA], R6			; Aumenta a energia
-	CALL apaga_meteoro
-	MOV R6, 1
-	MOV [interrupt_stop], R6
-	;RET
-	JMP inicio_ciclo_processo_meteoro	;PROVISORIO, SHOULD BE FINISH GAME INSTEAD
+	JNZ ciclo_processo_meteoro							; caso colida
 continuação_ciclo:
 	SUB R10, 1
 	JN inicio_ciclo_processo_meteoro
@@ -1394,6 +1388,8 @@ PROCESS SP_míssil
 processo_misseis:	; chamado qd tecla missil premida (TECLA 1) 
 inicio_processo_misseis:
 	MOV R0, [evento_disparar_míssil]
+	MOV R0, -1
+	MOV [evento_energia], R0
 	MOV R3, 13							; Contador de movimentos do míssil (máximo é 12) - 
 inicialização_míssil:					; 		    - definido como 13 para comparar com 0
 ; SOM DISPARO MISSIL
@@ -1467,8 +1463,8 @@ colisão_meteoro_mau:
 	; SOM da COLISÃO					; colisão com um meteoro bom
 	MOV R0, 0							; Ainda só há 1 som
 	MOV [TOCA_SOM], R0
-	; IMAGEM
-	; AUMENTA ENERGIA DISPLAYS EM 5%
+	MOV R0, 1
+	MOV [evento_energia], R0			; Aumenta Energia
 	JMP rot_destruição
 
 
