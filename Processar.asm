@@ -68,7 +68,7 @@ MIN_COLUNA				EQU  0			; Número da última coluna à esquerda no ecrã
 MAX_COLUNA				EQU  64     	; Número da última coluna à direita no ecrã
 
 
-COR_PIXEL_METEORO       EQU 0FF05H   
+COR_PIXEL_METEORO       EQU 0FF05H 
 COR_PIXEL_MISSIL 		EQU 0FD45H	 	
 
 ; Cores dos pixeis da nave
@@ -94,19 +94,19 @@ LINHA EQU 0H
 ; +-------+
 ; | DADOS | 
 ; +-------+
-	PLACE       2000H
+	PLACE       1500H
 pilha:
-	STACK 300H							; espaço reservado para a pilha 
+	STACK 100H							; espaço reservado para a pilha 
 										; (400H bytes, pois são 200H words)
 SP_inicial:								; este é o endereço (1400H) com que o SP deve ser 
 										; inicializado. O 1.º end. de retorno será 
 										; armazenado em 13FEH (1400H-2)
 
-	STACK 200H							; espaço reservado para a pilha
+	STACK 100H							; espaço reservado para a pilha
 SP_interrupt:
-	STACK 200H							; espaço reservado para a pilha
+	STACK 100H							; espaço reservado para a pilha
 SP_displays:
-	STACK 200H							; espaço reservado para a pilha
+	STACK 100H							; espaço reservado para a pilha
 SP_nave:
 	STACK 100H							; espaço reservado para a pilha do processo "teclado" (linha 1)
 SP_inicial_teclado_1:					; este é o endereço (2400H) com que o SP deste processo deve ser inicializado
@@ -120,13 +120,17 @@ SP_inicial_teclado_3:					; este é o endereço (2800H) com que o SP deste proce
 	STACK 100H							; espaço reservado para a pilha do processo "teclado" (linha 4)
 SP_inicial_teclado_4:					; este é o endereço (3000H) com que o SP deste processo deve ser inicializado
 
+	STACK 100H							; espaço reservado para a pilha do processo "pausa" (linha 1)
+SP_inicial_pausa:
 
 	STACK 100H							; espaço reservado para a pilha do processo "Meteoro"
 SP_Meteoro:								; este é o endereço (3200H) com que o SP deste processo deve ser inicializado
 
-
 	STACK 100H							; espaço reservado para a pilha do processo "míssil"
 SP_míssil:
+
+	STACK 100H							; espaço reservado para a pilha do processo "morte" (linha 1)
+SP_inicial_morte:						; este é o endereço (3400H) com que o SP deste processo deve ser inicializado
 
 
 SP_TECLADO:
@@ -142,6 +146,9 @@ evento_mover_nave:
 evento_energia:
 	LOCK 0H								; lock para a energia
 
+evento_morte:
+	LOCK 0H
+
 evento_mover_meteoros:
 	LOCK 0H								; lock para mover meteoros
 
@@ -156,6 +163,11 @@ tab_int:
 	WORD rot_int_1						; rotina de interrupção 1
 	WORD rot_int_2						; rotina de interrupção 2
 	
+
+LOCK_GAMESTATE_PAUSED:
+	LOCK 0H
+WORD_GAMESTATE_PAUSED:
+	WORD 0H
 
 LOCK_PRINCIPAL:
 	LOCK 0H								; lock para o programa principal 
@@ -305,19 +317,11 @@ PLACE   0                     			; o código tem de começar em 0000H
 inicio:
 	MOV  [APAGA_AVISO], R1	    		; Apaga o aviso de nenhum cenário selecionado 
     MOV  [APAGA_ECRÃS], R1	    		; Apaga todos os pixels já desenhados 
-	MOV	 R1, 0			        		; Cenário de fundo número 0
+	MOV	 R1, 1			        		; Cenário de fundo número 0
     MOV  [SELECIONA_CENARIO_FUNDO], R1	; Seleciona o cenário de fundo
 	MOV  SP, SP_inicial					; Inicializa o SP (stack pointer)
 	MOV  BTE, tab_int					; Inicializa a tabela de interrupções
 
-
-	
-	CALL processo_displays				; Processo de display
-	CALL processo_nave
-	CALL processo_meteoro
-	CALL processo_interrupt
-	CALL processo_misseis
-	;CALL misseis
 
 	MOV  R11, NUMERO_LINHAS				; Inicializa R11 com o valor da primeira linha a ser lida
 loop_teclados:							; Loop que chama o processo de teclado
@@ -325,6 +329,30 @@ loop_teclados:							; Loop que chama o processo de teclado
 	CALL teclado						; Cria uma instância do teclado
 	CMP R11, 0							; Verifica se a linha é a ultima
 	JNZ loop_teclados					; Se não for, então volta ao loop
+
+start_game:
+	MOV R4, TECLA_DIMINUI_DISPLAY
+	MOV R3, [TECLA_CARREGADA]
+	MOV R7, 0
+	MOV [TECLA_CONTINUA], R7
+	CMP R3, R4
+	JNZ start_game
+
+	MOV  [APAGA_AVISO], R1	    		; Apaga o aviso de nenhum cenário selecionado 
+    MOV  [APAGA_ECRÃS], R1	    		; Apaga todos os pixels já desenhados 
+	MOV R1, 0							; Cenário de fundo número 0
+	MOV [SELECIONA_CENARIO_FUNDO], R1	; Seleciona o cenário de fundo
+
+
+	CALL processo_displays				; Processo de display
+	CALL processo_nave
+	CALL processo_meteoro
+	CALL processo_interrupt
+	CALL processo_misseis
+	;CALL processo_pausa
+	;CALL processo_morte
+	;CALL misseis
+
 
 ;	EI0 								; Ativa a interrupção 0
 ;	EI1 								; Ativa a interrupção 1
@@ -335,6 +363,9 @@ loop_teclados:							; Loop que chama o processo de teclado
 
 espera_movimento:						; Espera até o teclado ler algo
 	MOV R3, [TECLA_CARREGADA]
+	MOV R4, [WORD_GAMESTATE_PAUSED]		; Maybe não preciso
+	CMP R4, 1
+	JZ tecla_n_continua
 mover_p_esquerda:						; Move a nave para a esquerda
 	CMP R3, TECLA_ESQUERDA
 	JNZ mover_p_direita
@@ -351,7 +382,7 @@ mover_p_direita:
 display_p_baixo:
 	MOV R7, TECLA_DIMINUI_DISPLAY
 	CMP R3, R7
-	JNZ display_p_cima
+	JNZ suspender_jogo
 	MOV R9, -1
 	MOV [evento_energia] , R9
 	JMP tecla_n_continua
@@ -361,6 +392,14 @@ display_p_cima:
 	JNZ tecla_missil
 	MOV R9, 1
 	MOV [evento_energia] , R9
+	JMP tecla_n_continua
+suspender_jogo:
+	MOV R7, TECLA_AUMENTA_DISPLAY
+	CMP R3, R7
+	JNZ tecla_missil
+	MOV R9, 1
+	MOV [LOCK_GAMESTATE_PAUSED], R9
+	MOV [WORD_GAMESTATE_PAUSED], R9
 	JMP tecla_n_continua
 tecla_missil:
 	MOV R7, 1
@@ -376,16 +415,57 @@ acaba_jogo:
 	JMP tecla_n_continua
 nao_tecla:
 tecla_é_continua:
-	MOV R7 ,1
+	MOV R7, 1
 	MOV [TECLA_CONTINUA], R7
 	JMP espera_movimento
 tecla_n_continua:
-	MOV R7 ,0
+	MOV R7, 0
 	MOV [TECLA_CONTINUA], R7
 	JMP espera_movimento
 
 
 
+PROCESS SP_inicial_pausa
+processo_pausa:
+	MOV R0, [LOCK_GAMESTATE_PAUSED]
+	MOV R1, 1
+	CMP R0, 1
+	JNZ processo_pausa
+pause:
+	DI0
+	DI
+	MOV [APAGA_AVISO], R1
+	MOV R1, 1
+	MOV [SELECIONA_CENARIO_FUNDO], R1
+
+resume:
+	MOV R5, [TECLA_CARREGADA]
+	MOV R4, TECLA_AUMENTA_DISPLAY
+	CMP R5, R4
+	JNZ resume
+	MOV R11, 0
+	MOV [LOCK_GAMESTATE_PAUSED], R11
+	MOV [WORD_GAMESTATE_PAUSED], R11
+	EI0
+	EI
+	MOV [APAGA_AVISO], R1
+	MOV R1, 0
+	MOV [SELECIONA_CENARIO_FUNDO], R1
+	JMP processo_pausa
+
+PROCESS SP_inicial_morte
+processo_morte:
+	MOV R0, [evento_morte]
+	CMP R0, 1
+	JNZ processo_morte
+
+morte:
+	DI0
+	DI
+	MOV [APAGA_ECRÃS], R1
+	MOV R1, 1
+	MOV [SELECIONA_CENARIO_FUNDO], R1
+	JMP morte
 
 
 
@@ -759,6 +839,27 @@ exit_diminui_energia_display:
 	RET
 
 
+;diminui_energia_display:
+;	PUSH R0								; Guarda o valor de R0
+;	PUSH R4								; Guarda o valor de R4
+;	PUSH R8								; Guarda o valor de R8
+;	MOV R0, [ENERGIA]					; Coloca em R0 o valor inicial da energia
+;	CMP R0, VALOR_ENERGIA_DIMINUI		; Se a energia for maior que 5, não altera
+;	JLT out_of_energy  
+;	SUB R0, 5
+;	MOV R11, R0
+;	MOV [ENERGIA], R0					; Guarda energia na memória
+;	CALL energia_para_decimal			; Converte a energia para decimal
+;	MOV [ENDEREÇO_DISPLAY], R4			; Coloca o valor inicial no display
+;	JMP exit_diminui_energia_display
+;out_of_energy:
+;	MOV R8, 1H
+;	MOV [evento_morte], R8
+;exit_diminui_energia_display:
+;	POP R8								; Restaura o valor de R8
+;	POP R4								; Restaura o valor de R4
+;	POP R0								; Restaura o valor de R0
+;	RET
 
 
 
